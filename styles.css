@@ -162,3 +162,8 @@ main {
   font-size: 0.85rem;
   padding-top: 1rem;
 }
+
+.app-footer .version {
+  font-size: 0.75rem;
+  opacity: 0.6;
+}

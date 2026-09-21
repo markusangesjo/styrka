@@ -1,0 +1,71 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          existing_tag=$(git tag --points-at "$SHA" --list 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n 1)
+
+          if [ -n "$existing_tag" ]; then
+            version="${existing_tag#v}"
+          elif [ "$EVENT_NAME" = "push" ]; then
+            latest_tag=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n 1)
+            base_version="${latest_tag#v}"
+            base_version="${base_version:-0.1.0}"
+            version=$(node -e "const [major, minor, patch] = process.argv[1].split('.').map(Number); console.log([major, minor, patch + 1].join('.'))" "$base_version")
+            git tag -a "v$version" "$SHA" -m "Release v$version"
+            git push origin "v$version"
+          else
+            version="0.1.0"
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    runs-on: ubuntu-latest
+    needs: version
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stamp app version
+        env:
+          APP_VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          sed -i "s/__APP_VERSION__/$APP_VERSION/" index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
