@@ -259,13 +259,12 @@ main {
 .set-check {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   background: rgba(255, 255, 255, 0.05);
-  padding: 0.4rem 0.65rem;
+  padding: 0.35rem 0.5rem;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 0.88rem;
-  min-width: 5.2rem;
+  font-size: 0.8rem;
   user-select: none;
 }
 
@@ -290,10 +289,10 @@ main {
   background: none;
   border: none;
   color: var(--accent);
-  font-size: 1.4rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  width: 3.2rem;
-  height: 3.2rem;
+  width: 2.6rem;
+  height: 2.6rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -317,17 +316,17 @@ main {
 }
 
 .weight-display {
-  min-width: 2.8rem;
+  min-width: 2.2rem;
   text-align: center;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .weight-display-unit {
   color: var(--muted);
-  font-size: 0.78rem;
-  margin-right: 0.3rem;
+  font-size: 0.65rem;
+  margin-right: 0.25rem;
 }
 
 /* ── Reps stepper ── */
@@ -342,17 +341,17 @@ main {
 }
 
 .reps-display {
-  min-width: 2.2rem;
+  min-width: 1.8rem;
   text-align: center;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .reps-display-unit {
   color: var(--muted);
-  font-size: 0.78rem;
-  margin-right: 0.3rem;
+  font-size: 0.65rem;
+  margin-right: 0.25rem;
 }
 
 .set-row {
