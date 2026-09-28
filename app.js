@@ -110,13 +110,50 @@ function adjustWeight(key, delta) {
   if (display) display.textContent = next % 1 === 0 ? next : next.toFixed(1);
 }
 
-function renderProgram() {
+function getSmartDefault() {
+  const day = new Date().getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  if (day === 1 || day === 4) return "push";  // Mon, Thu
+  if (day === 2 || day === 5) return "pull";  // Tue, Fri
+  if (day === 3 || day === 6) return "legs";  // Wed, Sat
+  return "push"; // Sun
+}
+
+let activeDay = getSmartDefault();
+
+function renderTabs() {
+  const main = document.querySelector("main");
+  let tabBar = document.getElementById("tab-bar");
+  if (!tabBar) {
+    tabBar = document.createElement("div");
+    tabBar.id = "tab-bar";
+    tabBar.className = "tab-bar";
+    main.prepend(tabBar);
+  }
+  tabBar.innerHTML = PROGRAM.map((day) => {
+    const label = day.id.charAt(0).toUpperCase() + day.id.slice(1);
+    const isActive = day.id === activeDay;
+    return `<button data-day="${day.id}" class="${isActive ? "active" : ""}" aria-pressed="${isActive}">${label}</button>`;
+  }).join("");
+
+  tabBar.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-day]");
+    if (!btn || btn.dataset.day === activeDay) return;
+    activeDay = btn.dataset.day;
+    renderTabs();
+    renderProgram(activeDay);
+  });
+}
+
+function renderProgram(dayId) {
+  if (!dayId) dayId = activeDay;
   const root = document.getElementById("program");
   root.innerHTML = "";
 
-  PROGRAM.forEach((day) => {
-    const section = document.createElement("section");
-    section.className = "day-card";
+  const day = PROGRAM.find((d) => d.id === dayId);
+  if (!day) return;
+
+  const section = document.createElement("section");
+  section.className = "day-card";
 
     const header = document.createElement("div");
     header.className = "day-header";
@@ -126,6 +163,25 @@ function renderProgram() {
       <p class="warmup"><strong>Uppvärmning:</strong> ${day.warmup}</p>
     `;
     section.appendChild(header);
+
+    // Progress bar for this day
+    const totalSets = day.exercises.reduce((sum, ex) => sum + ex.sets, 0);
+    let checkedSets = 0;
+    day.exercises.forEach((ex, exIdx) => {
+      for (let s = 0; s < ex.sets; s++) {
+        if (state.sets[setKey(day.id, exIdx, s)]) checkedSets++;
+      }
+    });
+    const pct = totalSets > 0 ? Math.round((checkedSets / totalSets) * 100) : 0;
+    const progressWrap = document.createElement("div");
+    progressWrap.className = "progress-wrap";
+    progressWrap.innerHTML = `
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" data-progress-day="${day.id}" style="width:${pct}%"></div>
+      </div>
+      <span class="progress-text" data-progress-text="${day.id}">${checkedSets} / ${totalSets} set</span>
+    `;
+    section.appendChild(progressWrap);
 
     const table = document.createElement("div");
     table.className = "exercise-list";
@@ -182,21 +238,25 @@ function renderProgram() {
     resetBtn.textContent = "Nytt pass";
     resetBtn.addEventListener("click", () => resetSession(day.id));
 
-    btnRow.appendChild(finishBtn);
-    btnRow.appendChild(resetBtn);
-    section.appendChild(btnRow);
+  btnRow.appendChild(finishBtn);
+  btnRow.appendChild(resetBtn);
+  section.appendChild(btnRow);
 
-    root.appendChild(section);
-  });
+  root.appendChild(section);
 
   // Checkbox handler — save state + update checked styling
   root.addEventListener("change", (e) => {
     if (e.target.matches('input[type="checkbox"][data-key]')) {
       state.sets[e.target.dataset.key] = e.target.checked;
       saveState(state);
+      if (navigator.vibrate) navigator.vibrate(10);
       // Toggle visual state on the parent set-check label
       const label = e.target.closest(".set-check");
       if (label) label.classList.toggle("is-checked", e.target.checked);
+      // Update progress bar for this day
+      const key = e.target.dataset.key;
+      const dayId = key.split("-")[0];
+      updateProgress(dayId);
     }
   });
 
@@ -211,6 +271,7 @@ function renderProgram() {
 }
 
 function resetSession(dayId) {
+  if (!confirm('Rensa alla bockar för detta pass?')) return;
   // Clear only checkboxes for this day, keep weights and log intact
   const day = PROGRAM.find((d) => d.id === dayId);
   if (!day) return;
@@ -220,7 +281,7 @@ function resetSession(dayId) {
     }
   });
   saveState(state);
-  renderProgram();
+  renderProgram(dayId);
 }
 
 function logSession(dayId, dayName) {
@@ -350,7 +411,8 @@ function showUpdateBanner(worker) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  renderProgram();
+  renderTabs();
+  renderProgram(activeDay);
   setupUpdateBanner();
 
   // Info toggle
