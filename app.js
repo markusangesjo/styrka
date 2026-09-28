@@ -297,9 +297,9 @@ function migrateState() {
 function loadState() {
   migrateState();
   try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { sets: {}, weights: {}, log: [] };
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || { sets: {}, weights: {}, reps: {}, log: [] };
   } catch {
-    return { sets: {}, weights: {}, log: [] };
+    return { sets: {}, weights: {}, reps: {}, log: [] };
   }
 }
 
@@ -359,6 +359,39 @@ function adjustWeight(key, delta) {
   // Update the display
   const display = document.querySelector(`[data-weight-display="${key}"]`);
   if (display) display.textContent = next % 1 === 0 ? next : next.toFixed(1);
+}
+
+// Parse the rep target from an exercise reps string ("8–10" → 10).
+// Returns null for time-based exercises ("30–45 sek", "30 sek / sida").
+function parseDefaultReps(repsStr) {
+  if (!repsStr || /sek|sida/i.test(repsStr)) return null;
+  const nums = String(repsStr).match(/\d+/g);
+  return nums ? Math.max(...nums.map(Number)) : null;
+}
+
+// Returns the last logged reps for an exercise (from log history)
+function lastLoggedReps(dayId, exIdx) {
+  for (const entry of state.log) {
+    if (entry.reps) {
+      for (let s = 0; s < 10; s++) {
+        const k = setKey(dayId, exIdx, s);
+        if (entry.reps[k] !== undefined && entry.reps[k] !== "") {
+          return entry.reps[k];
+        }
+      }
+    }
+  }
+  return null;
+}
+
+function adjustReps(key, delta, fallback) {
+  const current = state.reps && state.reps[key] !== undefined ? state.reps[key] : fallback;
+  const next = Math.max(0, (current || 0) + delta);
+  if (!state.reps) state.reps = {};
+  state.reps[key] = next;
+  saveState(state);
+  const display = document.querySelector(`[data-reps-display="${key}"]`);
+  if (display) display.textContent = next;
 }
 
 function getSmartDefault() {
@@ -449,6 +482,7 @@ function renderProgram(dayId) {
 
     const prevWeight = lastLoggedWeight(day.id, exIdx) || (ex.start ?? 0);
     const exStep = ex.step ?? 2.5;
+    const defaultReps = parseDefaultReps(ex.reps);
 
     const setsHtml = Array.from({ length: ex.sets })
       .map((_, setIdx) => {
@@ -457,6 +491,22 @@ function renderProgram(dayId) {
         const weight =
           state.weights[key] !== undefined ? state.weights[key] : prevWeight;
         const displayWeight = weight % 1 === 0 ? weight : parseFloat(weight).toFixed(1);
+
+        // Reps: saved > last logged > exercise default
+        let repsHtml = "";
+        if (defaultReps !== null) {
+          const reps =
+            state.reps && state.reps[key] !== undefined
+              ? state.reps[key]
+              : (lastLoggedReps(day.id, exIdx) ?? defaultReps);
+          repsHtml = `
+          <div class="reps-stepper">
+            <button class="stepper-btn minus" data-reps-key="${key}" data-delta="-1" aria-label="Minska reps">−</button>
+            <span class="reps-display" data-reps-display="${key}">${reps}</span>
+            <span class="reps-display-unit">rep</span>
+            <button class="stepper-btn plus" data-reps-key="${key}" data-delta="1" aria-label="Öka reps">+</button>
+          </div>`;
+        }
 
         return `<div class="set-row">
           <label class="set-check${state.sets[key] ? " is-checked" : ""}">
@@ -469,6 +519,7 @@ function renderProgram(dayId) {
             <span class="weight-display-unit">kg</span>
             <button class="stepper-btn plus" data-key="${key}" data-delta="${exStep}" aria-label="Öka vikt">+</button>
           </div>
+          ${repsHtml}
         </div>`;
       })
       .join("");
@@ -523,7 +574,17 @@ function renderProgram(dayId) {
   root.addEventListener("click", (e) => {
     const btn = e.target.closest(".stepper-btn");
     if (btn) {
-      adjustWeight(btn.dataset.key, parseFloat(btn.dataset.delta));
+      if (btn.dataset.repsKey !== undefined) {
+        // Reps button — find this exercise's default as fallback
+        const repKey = btn.dataset.repsKey;
+        const [dayId, exIdxStr] = repKey.split(":");
+        const day = PROGRAM.find((d) => d.id === dayId);
+        const ex = day ? day.exercises[Number(exIdxStr)] : null;
+        const fallback = ex ? parseDefaultReps(ex.reps) : 0;
+        adjustReps(repKey, parseFloat(btn.dataset.delta), fallback ?? 0);
+      } else {
+        adjustWeight(btn.dataset.key, parseFloat(btn.dataset.delta));
+      }
       return;
     }
     // Exercise name click handler
@@ -763,7 +824,9 @@ function resetSession(dayId) {
   if (!day) return;
   day.exercises.forEach((ex, exIdx) => {
     for (let s = 0; s < ex.sets; s++) {
-      delete state.sets[setKey(dayId, exIdx, s)];
+      const k = setKey(dayId, exIdx, s);
+      delete state.sets[k];
+      if (state.reps) delete state.reps[k];
     }
   });
   saveState(state);
@@ -773,9 +836,10 @@ function resetSession(dayId) {
 function logSession(dayId, dayName) {
   const today = new Date().toISOString().slice(0, 10);
 
-  // Snapshot current weights for this day
+  // Snapshot current weights and reps for this day
   const day = PROGRAM.find((d) => d.id === dayId);
   const sessionWeights = {};
+  const sessionReps = {};
   if (day) {
     day.exercises.forEach((ex, exIdx) => {
       for (let s = 0; s < ex.sets; s++) {
@@ -784,11 +848,21 @@ function logSession(dayId, dayName) {
         if (w !== undefined && w !== "" && w !== 0) {
           sessionWeights[k] = w;
         }
+        const r = state.reps ? state.reps[k] : undefined;
+        if (r !== undefined && r !== "" && r !== 0) {
+          sessionReps[k] = r;
+        }
       }
     });
   }
 
-  state.log.unshift({ dayId, dayName, date: today, weights: sessionWeights });
+  state.log.unshift({
+    dayId,
+    dayName,
+    date: today,
+    weights: sessionWeights,
+    reps: sessionReps
+  });
   saveState(state);
   renderLog();
 }
@@ -807,16 +881,19 @@ function renderLog() {
       const day = PROGRAM.find((d) => d.id === entry.dayId);
       let weightSummary = "";
 
-      if (entry.weights && day) {
+      if ((entry.weights || entry.reps) && day) {
         const lines = day.exercises
           .map((ex, exIdx) => {
             const ws = [];
+            const rs = [];
             for (let s = 0; s < ex.sets; s++) {
               const k = setKey(entry.dayId, exIdx, s);
-              const w = entry.weights[k];
+              const w = entry.weights ? entry.weights[k] : undefined;
               if (w !== undefined && w !== null && w !== "" && w !== 0) ws.push(w);
+              const r = entry.reps ? entry.reps[k] : undefined;
+              if (r !== undefined && r !== null && r !== "" && r !== 0) rs.push(r);
             }
-            if (!ws.length) return null;
+            if (!ws.length && !rs.length) return null;
             // Collapse identical weights: "20 kg ×3"
             const collapsed = ws
               .reduce((acc, w) => {
@@ -829,7 +906,8 @@ function renderLog() {
               }, [])
               .map(({ w, n }) => (n > 1 ? `${w} kg ×${n}` : `${w} kg`))
               .join(", ");
-            return `<span class="log-ex"><em>${ex.name}:</em> ${collapsed}</span>`;
+            const repsStr = rs.length ? ` &middot; ${rs.join("/")}` : "";
+            return `<span class="log-ex"><em>${ex.name}:</em> ${collapsed}${repsStr}</span>`;
           })
           .filter(Boolean);
 
