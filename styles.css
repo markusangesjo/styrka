@@ -87,6 +87,24 @@ body {
   line-height: 1.6;
 }
 
+.force-update-btn {
+  margin-top: 0.75rem;
+  width: 100%;
+  padding: 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.force-update-btn:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 /* ── Update banner ── */
 #update-banner {
   position: sticky;
