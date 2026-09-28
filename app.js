@@ -370,6 +370,10 @@ function parseDefaultReps(repsStr) {
 }
 
 // Time-based exercise ("30–45 sek", "30 sek / sida") → counted in seconds, not reps/kg.
+// Display helper: "sek" → "s" (avoids confusion with SEK currency).
+function fmtSek(str) {
+  return String(str ?? "").replace(/sek/g, "s");
+}
 function isTimedExercise(ex) {
   return !!(ex && ex.reps && /sek|sida/i.test(ex.reps));
 }
@@ -516,7 +520,7 @@ function renderProgram(dayId) {
         // Reps / seconds: saved > last logged > exercise default
         let repsHtml = "";
         if (timed || defaultReps !== null) {
-          const unit = timed ? "sek" : "rep";
+          const unit = timed ? "s" : "rep";
           const delta = timed ? 5 : 1;
           const fallback = timed ? defaultSeconds : defaultReps;
           const val =
@@ -546,7 +550,7 @@ function renderProgram(dayId) {
     const exId = ex.id || "";
     exEl.innerHTML = `
       <span class="exercise-name-btn" data-ex-id="${exId}" role="button" tabindex="0">${ex.name}</span>
-      <div class="exercise-meta">${timed ? ex.reps : `${ex.reps} reps`} &middot; vila ${ex.rest}</div>
+      <div class="exercise-meta">${timed ? fmtSek(ex.reps) : `${fmtSek(ex.reps)} reps`} &middot; vila ${fmtSek(ex.rest)}</div>
       <div class="sets-rows">${setsHtml}</div>
     `;
     table.appendChild(exEl);
@@ -932,7 +936,7 @@ function renderLog() {
               }, [])
               .map(({ w, n }) => (n > 1 ? `${w} kg ×${n}` : `${w} kg`))
               .join(", ");
-            const repsStr = rs.length ? ` &middot; ${rs.join("/")}${isTimedExercise(ex) ? " sek" : " rep"}` : "";
+            const repsStr = rs.length ? ` &middot; ${rs.join("/")}${isTimedExercise(ex) ? " s" : " rep"}` : "";
             return `<span class="log-ex"><em>${ex.name}:</em> ${collapsed}${repsStr}</span>`;
           })
           .filter(Boolean);
