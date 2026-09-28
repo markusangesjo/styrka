@@ -100,6 +100,23 @@ function lastLoggedWeight(dayId, exIdx) {
   return 0;
 }
 
+function updateProgress(dayId) {
+  const day = PROGRAM.find((d) => d.id === dayId);
+  if (!day) return;
+  const total = day.exercises.reduce((s, ex) => s + ex.sets, 0);
+  const done = day.exercises.reduce((s, ex, exIdx) => {
+    for (let i = 0; i < ex.sets; i++) {
+      if (state.sets[setKey(dayId, exIdx, i)]) s++;
+    }
+    return s;
+  }, 0);
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const fill = document.querySelector(`[data-progress-fill="${dayId}"]`);
+  const text = document.querySelector(`[data-progress-text="${dayId}"]`);
+  if (fill) fill.style.width = pct + "%";
+  if (text) text.textContent = `${done} / ${total} set`;
+}
+
 function adjustWeight(key, delta) {
   const current = parseFloat(state.weights[key]) || 0;
   const next = Math.max(0, Math.round((current + delta) * 10) / 10);
@@ -120,10 +137,26 @@ function renderProgram() {
 
     const header = document.createElement("div");
     header.className = "day-header";
+
+    const total = day.exercises.reduce((s, ex) => s + ex.sets, 0);
+    const done = day.exercises.reduce((s, ex, exIdx) => {
+      for (let i = 0; i < ex.sets; i++) {
+        if (state.sets[setKey(day.id, exIdx, i)]) s++;
+      }
+      return s;
+    }, 0);
+    const pct = total ? Math.round((done / total) * 100) : 0;
+
     header.innerHTML = `
       <h2>${day.name}</h2>
       <p class="subtitle">${day.subtitle}</p>
       <p class="warmup"><strong>Uppvärmning:</strong> ${day.warmup}</p>
+      <div class="progress-wrap">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" data-progress-fill="${day.id}" style="width:${pct}%"></div>
+        </div>
+        <span class="progress-text" data-progress-text="${day.id}">${done} / ${total} set</span>
+      </div>
     `;
     section.appendChild(header);
 
@@ -194,9 +227,14 @@ function renderProgram() {
     if (e.target.matches('input[type="checkbox"][data-key]')) {
       state.sets[e.target.dataset.key] = e.target.checked;
       saveState(state);
+      if (navigator.vibrate) navigator.vibrate(10);
       // Toggle visual state on the parent set-check label
       const label = e.target.closest(".set-check");
       if (label) label.classList.toggle("is-checked", e.target.checked);
+      // Update progress bar for this day
+      const key = e.target.dataset.key;
+      const dayId = key.split(":")[0];
+      updateProgress(dayId);
     }
   });
 
@@ -211,6 +249,7 @@ function renderProgram() {
 }
 
 function resetSession(dayId) {
+  if (!confirm("Rensa alla bockar för detta pass?")) return;
   // Clear only checkboxes for this day, keep weights and log intact
   const day = PROGRAM.find((d) => d.id === dayId);
   if (!day) return;
