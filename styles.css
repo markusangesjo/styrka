@@ -400,8 +400,22 @@ main {
 }
 
 /* ── Progress bar ── */
+.sticky-progress {
+  position: sticky;
+  top: 2.6rem;
+  z-index: 9;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0 0.4rem;
+  margin: 0 -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
 .progress-wrap {
-  margin-top: 0.5rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;

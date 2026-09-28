@@ -426,14 +426,19 @@ function renderProgram(dayId) {
     <h2>${day.name}</h2>
     <p class="subtitle">${day.subtitle}</p>
     <p class="warmup"><strong>Uppvärmning:</strong> ${day.warmup}</p>
-    <div class="progress-wrap">
-      <div class="progress-bar-bg">
-        <div class="progress-bar-fill" data-progress-fill="${day.id}" style="width:${pct}%"></div>
-      </div>
-      <span class="progress-text" data-progress-text="${day.id}">${done} / ${total} set</span>
-    </div>
   `;
   section.appendChild(header);
+
+  // Sticky progress bar — rendered outside the card, pinned below tab bar
+  const stickyProgress = document.createElement("div");
+  stickyProgress.className = "sticky-progress";
+  stickyProgress.innerHTML = `
+    <div class="progress-bar-bg">
+      <div class="progress-bar-fill" data-progress-fill="${day.id}" style="width:${pct}%"></div>
+    </div>
+    <span class="progress-text" data-progress-text="${day.id}">${done} / ${total} set</span>
+  `;
+  root.appendChild(stickyProgress);
 
   const table = document.createElement("div");
   table.className = "exercise-list";
