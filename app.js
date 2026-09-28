@@ -361,16 +361,25 @@ function updateProgress(dayId) {
   if (text) text.textContent = progressText(day, dayId, done, total);
 }
 
-// Remaining expected seconds for a day, scaled by unchecked sets per exercise.
+// Remaining expected seconds for a day: warmup (if nothing done yet),
+// remaining work scaled by unchecked sets, setup between remaining exercises.
 function remainingDaySeconds(dayId, day) {
-  return day.exercises.reduce((s, ex, exIdx) => {
+  let anyDone = false;
+  let remaining = 0;
+  let remainingExCount = 0;
+  day.exercises.forEach((ex, exIdx) => {
     let doneEx = 0;
     for (let i = 0; i < ex.sets; i++) {
       if (state.sets[setKey(dayId, exIdx, i)]) doneEx++;
     }
-    if (doneEx >= ex.sets) return s;
-    return s + (expectedExerciseSeconds(ex, dayId, exIdx) * (ex.sets - doneEx)) / ex.sets;
-  }, 0);
+    if (doneEx > 0) anyDone = true;
+    if (doneEx >= ex.sets) return;
+    remainingExCount++;
+    remaining += (expectedExerciseSeconds(ex, dayId, exIdx) * (ex.sets - doneEx)) / ex.sets;
+  });
+  remaining += Math.max(0, remainingExCount - 1) * SETUP_SEC;
+  if (!anyDone) remaining += WARMUP_SEC;
+  return remaining;
 }
 
 // "12 / 15 set · 22 min kvar · klar ca 19:14" (or without ETA when nearly done)
@@ -454,6 +463,17 @@ function expectedExerciseSeconds(ex, dayId, exIdx) {
 function fmtMinutes(sec) {
   const m = Math.round(sec / 60);
   return m < 1 ? "<1 min" : `${m} min`;
+}
+
+// Byte/uppställning mellan övningar + uppvärmning
+const SETUP_SEC = 120;
+const WARMUP_SEC = 480;
+
+// Full day estimate: warmup + all exercises + setup between them
+function dayTotalSeconds(day) {
+  return day.exercises.reduce((s, ex, i) => s + expectedExerciseSeconds(ex, day.id, i), 0)
+    + Math.max(0, day.exercises.length - 1) * SETUP_SEC
+    + WARMUP_SEC;
 }
 
 // Target seconds from the reps string ("30–45 sek" → 45).
@@ -540,7 +560,7 @@ function renderProgram(dayId) {
   header.className = "day-header";
 
   const total = day.exercises.reduce((s, ex) => s + ex.sets, 0);
-  const daySeconds = day.exercises.reduce((s, ex, i) => s + expectedExerciseSeconds(ex, day.id, i), 0);
+  const daySeconds = dayTotalSeconds(day);
   const done = day.exercises.reduce((s, ex, exIdx) => {
     for (let i = 0; i < ex.sets; i++) {
       if (state.sets[setKey(day.id, exIdx, i)]) s++;
@@ -1278,9 +1298,7 @@ function logSession(dayId, dayName) {
     dayName,
     date: today,
     time: clock,
-    expectedSeconds: day
-      ? day.exercises.reduce((s, ex) => s + expectedExerciseSeconds(ex), 0)
-      : undefined,
+    expectedSeconds: day ? dayTotalSeconds(day) : undefined,
     weights: sessionWeights,
     reps: sessionReps
   });
@@ -1302,9 +1320,7 @@ function renderLog() {
       const day = PROGRAM.find((d) => d.id === entry.dayId);
       let weightSummary = "";
 
-      const expSec = entry.expectedSeconds ?? (day
-        ? day.exercises.reduce((s, ex) => s + expectedExerciseSeconds(ex), 0)
-        : undefined);
+      const expSec = entry.expectedSeconds ?? (day ? dayTotalSeconds(day) : undefined);
       const expectedStr = expSec ? ` · ≈${fmtMinutes(expSec)}` : "";
       const timeStr = entry.time ? `, kl ${entry.time}` : "";
 
