@@ -370,7 +370,7 @@ function progressText(day, dayId, done, total) {
   const eta = new Date(Date.now() + remaining * 1000);
   const hh = String(eta.getHours()).padStart(2, "0");
   const mm = String(eta.getMinutes()).padStart(2, "0");
-  return `${done} / ${total} set · klar ca ${hh}:${mm}`;
+  return `${done} / ${total} set · ${fmtMinutes(remaining)} kvar · klar ca ${hh}:${mm}`;
 }
 
 function adjustWeight(key, delta) {
