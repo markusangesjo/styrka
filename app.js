@@ -397,7 +397,7 @@ function fmtSek(str) {
   return String(str ?? "").replace(/sek/g, "s");
 }
 function isTimedExercise(ex) {
-  return !!(ex && ex.reps && /sek|sida/i.test(ex.reps));
+  return !!(ex && ex.reps && /sek|sida|\bs\b/i.test(ex.reps));
 }
 
 // Estimated duration per set (s): timed exercises use target seconds,
@@ -921,6 +921,24 @@ function openExerciseModal(exId) {
   const tipsHtml = ex.tips ? `<p class="modal-tips">${ex.tips}</p>` : "";
   const weightDisplay = ex.defaultWeight % 1 === 0 ? ex.defaultWeight : ex.defaultWeight.toFixed(1);
   const timed = isTimedExercise(ex);
+  const currentRestSec = parseRestSeconds(ex.rest);
+  const repsSuffix = /\/\s*sida/i.test(ex.reps || "") ? " / sida" : "";
+  const currentRepsVal = timed ? parseDefaultSeconds(ex) : parseDefaultReps(ex.reps);
+  const restSectionHtml = `
+      <p class="modal-section-label">Vilotid</p>
+      <div class="weight-stepper" style="display:inline-flex;margin-bottom:0.5rem;">
+        <button class="stepper-btn minus" id="modal-rest-minus" aria-label="Minska vilotid">−</button>
+        <span class="weight-display" id="modal-rest-display">${currentRestSec}</span>
+        <span class="weight-display-unit">s</span>
+        <button class="stepper-btn plus" id="modal-rest-plus" aria-label="Öka vilotid">+</button>
+      </div>
+      <p class="modal-section-label">Default ${timed ? "tid (s)" : "reps"}</p>
+      <div class="weight-stepper" style="display:inline-flex;margin-bottom:0.5rem;">
+        <button class="stepper-btn minus" id="modal-reps-minus" aria-label="Minska">−</button>
+        <span class="weight-display" id="modal-reps-display">${currentRepsVal ?? 0}</span>
+        <span class="weight-display-unit">${timed ? "s" : "rep"}</span>
+        <button class="stepper-btn plus" id="modal-reps-plus" aria-label="Öka">+</button>
+      </div>`;
   const weightSectionHtml = timed ? "" : `
       <p class="modal-section-label">Defaultvikt</p>
       <div class="weight-stepper" style="display:inline-flex;margin-bottom:0.5rem;">
@@ -944,6 +962,7 @@ function openExerciseModal(exId) {
       <p class="modal-description">${ex.description}</p>
       ${tipsHtml}
       ${weightSectionHtml}
+      ${restSectionHtml}
       <p class="modal-section-label">Pass</p>
       <div class="day-chips" id="day-chips-container">
         ${dayChipsHtml}
@@ -957,6 +976,8 @@ function openExerciseModal(exId) {
   let currentWeight = ex.defaultWeight;
   let currentStep = ex.step;
   let currentDays = [...ex.days];
+  let currentRest = currentRestSec;
+  let currentReps = currentRepsVal ?? 0;
 
   function updateWeightDisplay() {
     const d = document.getElementById("modal-weight-display");
@@ -970,6 +991,10 @@ function openExerciseModal(exId) {
     lib2[idx].defaultWeight = currentWeight;
     lib2[idx].step = currentStep;
     lib2[idx].days = currentDays;
+    lib2[idx].rest = `${currentRest} s`;
+    lib2[idx].reps = timed
+      ? `${currentReps} s${repsSuffix}`
+      : String(currentReps);
     saveLibrary(lib2);
     // Rebuild program and re-render
     PROGRAM = buildProgramFromLibrary();
@@ -1000,6 +1025,29 @@ function openExerciseModal(exId) {
     saveChanges();
   });
   }
+
+  // Rest timer / default reps steppers
+  const restRepStep = timed ? 5 : 1;
+  document.getElementById("modal-rest-minus").addEventListener("click", () => {
+    currentRest = Math.max(0, currentRest - 15);
+    document.getElementById("modal-rest-display").textContent = currentRest;
+    saveChanges();
+  });
+  document.getElementById("modal-rest-plus").addEventListener("click", () => {
+    currentRest = currentRest + 15;
+    document.getElementById("modal-rest-display").textContent = currentRest;
+    saveChanges();
+  });
+  document.getElementById("modal-reps-minus").addEventListener("click", () => {
+    currentReps = Math.max(0, currentReps - restRepStep);
+    document.getElementById("modal-reps-display").textContent = currentReps;
+    saveChanges();
+  });
+  document.getElementById("modal-reps-plus").addEventListener("click", () => {
+    currentReps = currentReps + restRepStep;
+    document.getElementById("modal-reps-display").textContent = currentReps;
+    saveChanges();
+  });
 
   // Day chips
   document.getElementById("day-chips-container").addEventListener("click", (e) => {
