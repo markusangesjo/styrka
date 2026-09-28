@@ -53,6 +53,21 @@ body {
   opacity: 0.6;
 }
 
+.lib-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.15rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  line-height: 1;
+  border-radius: 6px;
+}
+
+.lib-btn:active {
+  opacity: 0.6;
+}
+
 /* ── Info panel ── */
 .info-panel {
   max-width: 720px;
@@ -173,9 +188,21 @@ main {
   padding: 0.75rem 0;
 }
 
-.exercise-name {
+.exercise-name-btn {
   font-weight: 600;
   font-size: 0.95rem;
+  cursor: pointer;
+  display: inline-block;
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: rgba(255,255,255,0.2);
+  text-underline-offset: 2px;
+}
+
+.exercise-name-btn:hover,
+.exercise-name-btn:focus {
+  color: var(--accent);
+  outline: none;
 }
 
 .exercise-meta {
@@ -396,4 +423,174 @@ main {
   font-size: 0.75rem;
   color: #94a3b8;
   white-space: nowrap;
+}
+
+/* ── Exercise modal ── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 200;
+  display: flex;
+  align-items: flex-end;
+}
+.modal-sheet {
+  background: #1e293b;
+  border-radius: 16px 16px 0 0;
+  padding: 1.25rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: slideUp 0.22s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+}
+.muscle-badge {
+  display: inline-block;
+  background: rgba(34,211,238,0.15);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  margin-bottom: 0.75rem;
+}
+.modal-description {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 0.5rem;
+}
+.modal-tips {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-style: italic;
+  margin-bottom: 1rem;
+  opacity: 0.8;
+}
+.modal-section-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 1rem 0 0.4rem;
+}
+.step-chips {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.step-chip {
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.step-chip.active {
+  background: rgba(34,211,238,0.15);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.day-chips {
+  display: flex;
+  gap: 0.4rem;
+}
+.day-chip {
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.day-chip.active {
+  background: rgba(34,211,238,0.15);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── Library overlay ── */
+.library-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.18s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.library-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(1rem + env(safe-area-inset-top)) 1.25rem 0.75rem;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.library-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.library-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem 1rem calc(1rem + env(safe-area-inset-bottom));
+}
+.library-group-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.75rem 0 0.25rem;
+}
+.library-exercise-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  cursor: pointer;
+}
+.library-exercise-row:active {
+  opacity: 0.7;
+}
+.library-ex-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.library-ex-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.1rem;
+}
+.library-day-pill {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.07);
+  color: var(--muted);
 }

@@ -3,54 +3,282 @@
 
 const STORAGE_KEY = "styrka-state-v2";
 const STORAGE_KEY_V1 = "styrka-state-v1";
+const LIBRARY_KEY = "styrka-library-v1";
 
-const PROGRAM = [
+// ── Exercise library data ─────────────────────────────────────────────────────
+
+const DEFAULT_LIBRARY = [
   {
-    id: "push",
-    name: "Pass 1 – Push",
-    subtitle: "Bröst, axlar, triceps",
-    warmup: "5–10 min: rodd-/cykelmaskin + armcirklar + lätta armhävningar",
-    exercises: [
-      { name: "Bänkpress (skivstång eller hantlar)", sets: 3, reps: "8–10", rest: "90 sek", start: 20, step: 5 },
-      { name: "Axelpress, sittande (hantlar)", sets: 3, reps: "8–10", rest: "90 sek" },
-      { name: "Lutande hantelpress eller cable press", sets: 3, reps: "10", rest: "75 sek" },
-      { name: "Sidolyft axlar (hantlar)", sets: 3, reps: "12–15", rest: "60 sek" },
-      { name: "Triceps pushdown (kabel)", sets: 3, reps: "10–12", rest: "60 sek" },
-      { name: "Plankan", sets: 3, reps: "30–45 sek", rest: "45 sek" }
-    ]
+    id: "bankpress",
+    name: "Bänkpress (skivstång eller hantlar)",
+    muscle: "Bröst",
+    description: "Grundövning för bröst. Ligg på bänken, ta ett grepp lite bredare än axelbredd. Sänk stången kontrollerat till bröstet och pressa upp.",
+    tips: "Håll skulderbladen ihop och bakåt. Håll fötterna i golvet.",
+    defaultWeight: 20,
+    step: 5,
+    sets: 3,
+    reps: "8–10",
+    rest: "90 sek",
+    days: ["push"]
   },
   {
-    id: "pull",
-    name: "Pass 2 – Pull",
-    subtitle: "Rygg, biceps, bakre axlar",
-    warmup: "5–10 min: rodd-/cykelmaskin + axelrullningar + band pull-apart",
-    exercises: [
-      { name: "Latsdrag eller assisterade pull-ups", sets: 3, reps: "8–10", rest: "90 sek" },
-      { name: "Sittande rodd (kabel eller hantlar)", sets: 3, reps: "8–10", rest: "90 sek" },
-      { name: "Rumänsk marklyft (raka ben)", sets: 3, reps: "8–10", rest: "90 sek" },
-      { name: "Face pull (kabel)", sets: 3, reps: "12–15", rest: "60 sek" },
-      { name: "Bicepscurl (hantlar)", sets: 3, reps: "10–12", rest: "60 sek" },
-      { name: "Sidoplanka", sets: 2, reps: "30 sek / sida", rest: "45 sek" }
-    ]
+    id: "axelpress-sittande",
+    name: "Axelpress, sittande (hantlar)",
+    muscle: "Axlar",
+    description: "Sittande axelpress med hantlar. Håll hantelarna i axelhöjd med armbågarna utåt och pressa upp till armarna är raka.",
+    tips: "Undvik att svänga med ryggen. Håll core aktiverat under hela rörelsen.",
+    defaultWeight: 10,
+    step: 2.5,
+    sets: 3,
+    reps: "8–10",
+    rest: "90 sek",
+    days: ["push"]
   },
   {
-    id: "legs",
-    name: "Pass 3 – Legs",
-    subtitle: "Ben, säte, vader",
-    warmup: "5–10 min: cykel + höftcirklar + kroppsviktsknäböj",
-    exercises: [
-      { name: "Knäböj eller benpress", sets: 3, reps: "8–10", rest: "120 sek" },
-      { name: "Utfallssteg (hantlar)", sets: 3, reps: "10 / ben", rest: "90 sek" },
-      { name: "Marklyft, rak stång (lätt vikt, teknikfokus)", sets: 3, reps: "8", rest: "120 sek" },
-      { name: "Bencurl (liggande/sittande maskin)", sets: 3, reps: "10–12", rest: "60 sek" },
-      { name: "Tåhävningar (vader)", sets: 3, reps: "15", rest: "45 sek" },
-      { name: "Situps / crunches", sets: 3, reps: "15", rest: "45 sek" }
-    ]
+    id: "lutande-hantelpress",
+    name: "Lutande hantelpress eller cable press",
+    muscle: "Bröst",
+    description: "Tränar övre bröstmuskulaturen. Utförs på lutande bänk med hantlar eller kabelmaskin. Pressa uppåt och lätt inåt.",
+    tips: "Sänk kontrollerat. Undvik att låsa ut armbågarna helt i toppläget.",
+    defaultWeight: 10,
+    step: 2.5,
+    sets: 3,
+    reps: "10",
+    rest: "75 sek",
+    days: ["push"]
+  },
+  {
+    id: "sidolyft-axlar",
+    name: "Sidolyft axlar (hantlar)",
+    muscle: "Axlar",
+    description: "Isolationsövning för de laterala deltoideusmusklerna. Lyft hantelarna ut åt sidorna till axelhöjd med lätt böjda armar.",
+    tips: "Håll rörelsen kontrollerad, undvik att svänga med kroppen. Fokusera på att lyfta med axlarna.",
+    defaultWeight: 5,
+    step: 2.5,
+    sets: 3,
+    reps: "12–15",
+    rest: "60 sek",
+    days: ["push"]
+  },
+  {
+    id: "triceps-pushdown",
+    name: "Triceps pushdown (kabel)",
+    muscle: "Triceps",
+    description: "Isolationsövning för triceps med kabelmaskin. Stå upprätt, håll armbågarna nära kroppen och pressa kabeln nedåt till armarna är raka.",
+    tips: "Håll överkroppen stilla. Armbågarna ska vara fasta – bara underarmen rör sig.",
+    defaultWeight: 15,
+    step: 2.5,
+    sets: 3,
+    reps: "10–12",
+    rest: "60 sek",
+    days: ["push"]
+  },
+  {
+    id: "plankan",
+    name: "Plankan",
+    muscle: "Core",
+    description: "Statisk coreövning. Håll kroppen rak i plankaposition med stöd på underarmarna och tårna. Håll positionen under angiven tid.",
+    tips: "Undvik att lyfta höfterna för högt eller sjunka med ryggen. Andas normalt.",
+    defaultWeight: 0,
+    step: 0,
+    sets: 3,
+    reps: "30–45 sek",
+    rest: "45 sek",
+    days: ["push"]
+  },
+  {
+    id: "latsdrag",
+    name: "Latsdrag eller assisterade pull-ups",
+    muscle: "Rygg",
+    description: "Grundövning för latissimus dorsi. Dra stången eller handtaget ned mot övre bröstet med rak rygg.",
+    tips: "Undvik att svänga med kroppen. Tänk på att dra med armbågarna nedåt och bakåt.",
+    defaultWeight: 40,
+    step: 5,
+    sets: 3,
+    reps: "8–10",
+    rest: "90 sek",
+    days: ["pull"]
+  },
+  {
+    id: "sittande-rodd",
+    name: "Sittande rodd (kabel eller hantlar)",
+    muscle: "Rygg",
+    description: "Roddövning som tränar hela ryggen, framförallt de mellersta delarna. Dra handtaget mot buken med rak rygg.",
+    tips: "Håll ryggen rak och bröstkorgen upp. Dra armbågarna bakåt, inte uppåt.",
+    defaultWeight: 30,
+    step: 5,
+    sets: 3,
+    reps: "8–10",
+    rest: "90 sek",
+    days: ["pull"]
+  },
+  {
+    id: "rumansk-marklyft",
+    name: "Rumänsk marklyft (raka ben)",
+    muscle: "Bakre lår",
+    description: "Tränar bakre lårmuskulaturen och sätesmusklerna. Håll stången nära kroppen och böj i höften med raka ben (svagt böjda knän).",
+    tips: "Håll ryggen rak. Känn sträcket i bakre låret. Gå inte lägre än du kan hålla ryggen neutral.",
+    defaultWeight: 30,
+    step: 5,
+    sets: 3,
+    reps: "8–10",
+    rest: "90 sek",
+    days: ["pull"]
+  },
+  {
+    id: "face-pull",
+    name: "Face pull (kabel)",
+    muscle: "Bakre axlar",
+    description: "Tränar bakre deltoideus och rotatorkuffen. Dra kabeln mot ansiktet med armbågarna högt och ut åt sidan.",
+    tips: "Håll armbågarna i axelhöjd eller högre. Bra för att motverka framåtrundat läge.",
+    defaultWeight: 15,
+    step: 2.5,
+    sets: 3,
+    reps: "12–15",
+    rest: "60 sek",
+    days: ["pull"]
+  },
+  {
+    id: "bicepscurl",
+    name: "Bicepscurl (hantlar)",
+    muscle: "Biceps",
+    description: "Isolationsövning för biceps. Stå eller sitt med hantelarna längs sidan, curl upp med kontroll.",
+    tips: "Håll armbågarna fixerade vid sidan. Undvik att svänga med kroppen för att hjälpa upp vikten.",
+    defaultWeight: 8,
+    step: 2.5,
+    sets: 3,
+    reps: "10–12",
+    rest: "60 sek",
+    days: ["pull"]
+  },
+  {
+    id: "sidoplanka",
+    name: "Sidoplanka",
+    muscle: "Core",
+    description: "Statisk coreövning som tränar de oblika bukmusklerna. Håll kroppen rak på sidan med stöd på underarmen och foten.",
+    tips: "Håll höfterna uppe. Undvik att rulla framåt eller bakåt. Byt sida.",
+    defaultWeight: 0,
+    step: 0,
+    sets: 2,
+    reps: "30 sek / sida",
+    rest: "45 sek",
+    days: ["pull"]
+  },
+  {
+    id: "knaboj-eller-benpress",
+    name: "Knäböj eller benpress",
+    muscle: "Quadriceps",
+    description: "Grundövning för benen. Knäböj med stång på ryggen eller benpress i maskin. Gå ned tills låren är parallella med golvet.",
+    tips: "Håll knäna i linje med tårna. Håll hälen i golvet och ryggen rak.",
+    defaultWeight: 40,
+    step: 5,
+    sets: 3,
+    reps: "8–10",
+    rest: "120 sek",
+    days: ["legs"]
+  },
+  {
+    id: "utfallssteg",
+    name: "Utfallssteg (hantlar)",
+    muscle: "Quadriceps",
+    description: "Utfallssteg med hantlar tränar quadriceps, säte och balansmuskler. Ta ett stort steg framåt och sänk bakre knät mot golvet.",
+    tips: "Håll överkroppen upprätt. Framre knät ska inte gå förbi tårna.",
+    defaultWeight: 10,
+    step: 2.5,
+    sets: 3,
+    reps: "10 / ben",
+    rest: "90 sek",
+    days: ["legs"]
+  },
+  {
+    id: "marklyft-teknik",
+    name: "Marklyft, rak stång (lätt vikt, teknikfokus)",
+    muscle: "Rygg/Lår",
+    description: "Marklyft med fokus på teknik och rörlighet. Lyft stången från golvet med rak rygg, drivkraft från benen och höfterna.",
+    tips: "Håll stången nära kroppen. Lås blicken framåt-nedåt. Aktivera core innan lyftet.",
+    defaultWeight: 30,
+    step: 5,
+    sets: 3,
+    reps: "8",
+    rest: "120 sek",
+    days: ["legs"]
+  },
+  {
+    id: "bencurl",
+    name: "Bencurl (liggande/sittande maskin)",
+    muscle: "Bakre lår",
+    description: "Isolationsövning för bakre lårmuskulaturen. Använd bencurlmaskin, liggande eller sittande. Curl upp kontrollerat.",
+    tips: "Håll höfterna nedtryckta mot bänken. Rör inte på ryggen under övningen.",
+    defaultWeight: 25,
+    step: 5,
+    sets: 3,
+    reps: "10–12",
+    rest: "60 sek",
+    days: ["legs"]
+  },
+  {
+    id: "tahavningar",
+    name: "Tåhävningar (vader)",
+    muscle: "Vader",
+    description: "Isolationsövning för vaderna. Stå med fötterna höftbrett isär, res dig upp på tårna och sänk kontrollerat.",
+    tips: "Gå igenom hela rörelseomfånget. Håll toppen en sekund för bättre kontraktion.",
+    defaultWeight: 0,
+    step: 5,
+    sets: 3,
+    reps: "15",
+    rest: "45 sek",
+    days: ["legs"]
+  },
+  {
+    id: "situps-crunches",
+    name: "Situps / crunches",
+    muscle: "Core",
+    description: "Mageövning som tränar raka bukmusklerna. Ligg på rygg med knäna böjda, lyft överkroppen mot knäna.",
+    tips: "Undvik att dra i nacken. Fokusera på att rulla upp med bukmuskeln.",
+    defaultWeight: 0,
+    step: 0,
+    sets: 3,
+    reps: "15",
+    rest: "45 sek",
+    days: ["legs"]
   }
 ];
 
-// Step size for +/- buttons (kg)
-const WEIGHT_STEP = 2.5;
+// ── Library functions ─────────────────────────────────────────────────────────
+
+function initLibrary() {
+  if (localStorage.getItem(LIBRARY_KEY)) return;
+  localStorage.setItem(LIBRARY_KEY, JSON.stringify(DEFAULT_LIBRARY));
+}
+
+function loadLibrary() {
+  try {
+    return JSON.parse(localStorage.getItem(LIBRARY_KEY)) || DEFAULT_LIBRARY;
+  } catch {
+    return DEFAULT_LIBRARY;
+  }
+}
+
+function saveLibrary(lib) {
+  localStorage.setItem(LIBRARY_KEY, JSON.stringify(lib));
+}
+
+function buildProgramFromLibrary() {
+  const lib = loadLibrary();
+  const days = [
+    { id: "push", name: "Pass 1 – Push", subtitle: "Bröst, axlar, triceps", warmup: "5–10 min: rodd-/cykelmaskin + armcirklar + lätta armhävningar" },
+    { id: "pull", name: "Pass 2 – Pull", subtitle: "Rygg, biceps, bakre axlar", warmup: "5–10 min: rodd-/cykelmaskin + axelrullningar + band pull-apart" },
+    { id: "legs", name: "Pass 3 – Legs", subtitle: "Ben, säte, vader", warmup: "5–10 min: cykel + höftcirklar + kroppsviktsknäböj" }
+  ];
+  return days.map(day => ({
+    ...day,
+    exercises: lib
+      .filter(ex => ex.days.includes(day.id))
+      .map(ex => ({ name: ex.name, id: ex.id, sets: ex.sets, reps: ex.reps, rest: ex.rest, start: ex.defaultWeight, step: ex.step }))
+  }));
+}
+
+// ── State management ──────────────────────────────────────────────────────────
 
 // Migrate v1 state (no weights) to v2
 function migrateState() {
@@ -79,7 +307,13 @@ function saveState(state) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+// ── Init library + program ────────────────────────────────────────────────────
+
+initLibrary();
+let PROGRAM = buildProgramFromLibrary();
 let state = loadState();
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function setKey(dayId, exIdx, setIdx) {
   return `${dayId}:${exIdx}:${setIdx}`;
@@ -137,6 +371,8 @@ function getSmartDefault() {
 
 let activeDay = getSmartDefault();
 
+// ── Render tabs ───────────────────────────────────────────────────────────────
+
 function renderTabs() {
   const main = document.querySelector("main");
   let tabBar = document.getElementById("tab-bar");
@@ -161,6 +397,8 @@ function renderTabs() {
   });
 }
 
+// ── Render program ────────────────────────────────────────────────────────────
+
 function renderProgram(dayId) {
   if (!dayId) dayId = activeDay;
   const root = document.getElementById("program");
@@ -172,86 +410,87 @@ function renderProgram(dayId) {
   const section = document.createElement("section");
   section.className = "day-card";
 
-    const header = document.createElement("div");
-    header.className = "day-header";
+  const header = document.createElement("div");
+  header.className = "day-header";
 
-    const total = day.exercises.reduce((s, ex) => s + ex.sets, 0);
-    const done = day.exercises.reduce((s, ex, exIdx) => {
-      for (let i = 0; i < ex.sets; i++) {
-        if (state.sets[setKey(day.id, exIdx, i)]) s++;
-      }
-      return s;
-    }, 0);
-    const pct = total ? Math.round((done / total) * 100) : 0;
+  const total = day.exercises.reduce((s, ex) => s + ex.sets, 0);
+  const done = day.exercises.reduce((s, ex, exIdx) => {
+    for (let i = 0; i < ex.sets; i++) {
+      if (state.sets[setKey(day.id, exIdx, i)]) s++;
+    }
+    return s;
+  }, 0);
+  const pct = total ? Math.round((done / total) * 100) : 0;
 
-    header.innerHTML = `
-      <h2>${day.name}</h2>
-      <p class="subtitle">${day.subtitle}</p>
-      <p class="warmup"><strong>Uppvärmning:</strong> ${day.warmup}</p>
-      <div class="progress-wrap">
-        <div class="progress-bar-bg">
-          <div class="progress-bar-fill" data-progress-fill="${day.id}" style="width:${pct}%"></div>
-        </div>
-        <span class="progress-text" data-progress-text="${day.id}">${done} / ${total} set</span>
+  header.innerHTML = `
+    <h2>${day.name}</h2>
+    <p class="subtitle">${day.subtitle}</p>
+    <p class="warmup"><strong>Uppvärmning:</strong> ${day.warmup}</p>
+    <div class="progress-wrap">
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" data-progress-fill="${day.id}" style="width:${pct}%"></div>
       </div>
+      <span class="progress-text" data-progress-text="${day.id}">${done} / ${total} set</span>
+    </div>
+  `;
+  section.appendChild(header);
+
+  const table = document.createElement("div");
+  table.className = "exercise-list";
+
+  day.exercises.forEach((ex, exIdx) => {
+    const exEl = document.createElement("div");
+    exEl.className = "exercise";
+
+    const prevWeight = lastLoggedWeight(day.id, exIdx) || (ex.start ?? 0);
+    const exStep = ex.step ?? 2.5;
+
+    const setsHtml = Array.from({ length: ex.sets })
+      .map((_, setIdx) => {
+        const key = setKey(day.id, exIdx, setIdx);
+        const checked = state.sets[key] ? "checked" : "";
+        const weight =
+          state.weights[key] !== undefined ? state.weights[key] : prevWeight;
+        const displayWeight = weight % 1 === 0 ? weight : parseFloat(weight).toFixed(1);
+
+        return `<div class="set-row">
+          <label class="set-check${state.sets[key] ? " is-checked" : ""}">
+            <input type="checkbox" data-key="${key}" ${checked}/>
+            <span>Set ${setIdx + 1}</span>
+          </label>
+          <div class="weight-stepper">
+            <button class="stepper-btn minus" data-key="${key}" data-delta="-${exStep}" aria-label="Minska vikt">−</button>
+            <span class="weight-display" data-weight-display="${key}">${displayWeight}</span>
+            <span class="weight-display-unit">kg</span>
+            <button class="stepper-btn plus" data-key="${key}" data-delta="${exStep}" aria-label="Öka vikt">+</button>
+          </div>
+        </div>`;
+      })
+      .join("");
+
+    const exId = ex.id || "";
+    exEl.innerHTML = `
+      <span class="exercise-name-btn" data-ex-id="${exId}" role="button" tabindex="0">${ex.name}</span>
+      <div class="exercise-meta">${ex.reps} reps &middot; vila ${ex.rest}</div>
+      <div class="sets-rows">${setsHtml}</div>
     `;
-    section.appendChild(header);
+    table.appendChild(exEl);
+  });
 
-    const table = document.createElement("div");
-    table.className = "exercise-list";
+  section.appendChild(table);
 
-    day.exercises.forEach((ex, exIdx) => {
-      const exEl = document.createElement("div");
-      exEl.className = "exercise";
+  const btnRow = document.createElement("div");
+  btnRow.className = "btn-row";
 
-      const prevWeight = lastLoggedWeight(day.id, exIdx) || (ex.start ?? 0);
-      const exStep = ex.step ?? WEIGHT_STEP;
+  const finishBtn = document.createElement("button");
+  finishBtn.className = "finish-btn";
+  finishBtn.textContent = "✓ Pass klart";
+  finishBtn.addEventListener("click", () => logSession(day.id, day.name));
 
-      const setsHtml = Array.from({ length: ex.sets })
-        .map((_, setIdx) => {
-          const key = setKey(day.id, exIdx, setIdx);
-          const checked = state.sets[key] ? "checked" : "";
-          const weight =
-            state.weights[key] !== undefined ? state.weights[key] : prevWeight;
-          const displayWeight = weight % 1 === 0 ? weight : parseFloat(weight).toFixed(1);
-
-          return `<div class="set-row">
-            <label class="set-check${state.sets[key] ? " is-checked" : ""}">
-              <input type="checkbox" data-key="${key}" ${checked}/>
-              <span>Set ${setIdx + 1}</span>
-            </label>
-            <div class="weight-stepper">
-              <button class="stepper-btn minus" data-key="${key}" data-delta="-${exStep}" aria-label="Minska vikt">−</button>
-              <span class="weight-display" data-weight-display="${key}">${displayWeight}</span>
-              <span class="weight-display-unit">kg</span>
-              <button class="stepper-btn plus" data-key="${key}" data-delta="${exStep}" aria-label="Öka vikt">+</button>
-            </div>
-          </div>`;
-        })
-        .join("");
-
-      exEl.innerHTML = `
-        <div class="exercise-name">${ex.name}</div>
-        <div class="exercise-meta">${ex.reps} reps &middot; vila ${ex.rest}</div>
-        <div class="sets-rows">${setsHtml}</div>
-      `;
-      table.appendChild(exEl);
-    });
-
-    section.appendChild(table);
-
-    const btnRow = document.createElement("div");
-    btnRow.className = "btn-row";
-
-    const finishBtn = document.createElement("button");
-    finishBtn.className = "finish-btn";
-    finishBtn.textContent = "✓ Pass klart";
-    finishBtn.addEventListener("click", () => logSession(day.id, day.name));
-
-    const resetBtn = document.createElement("button");
-    resetBtn.className = "reset-btn";
-    resetBtn.textContent = "Nytt pass";
-    resetBtn.addEventListener("click", () => resetSession(day.id));
+  const resetBtn = document.createElement("button");
+  resetBtn.className = "reset-btn";
+  resetBtn.textContent = "Nytt pass";
+  resetBtn.addEventListener("click", () => resetSession(day.id));
 
   btnRow.appendChild(finishBtn);
   btnRow.appendChild(resetBtn);
@@ -278,12 +517,245 @@ function renderProgram(dayId) {
   // +/- button handler
   root.addEventListener("click", (e) => {
     const btn = e.target.closest(".stepper-btn");
-    if (!btn) return;
-    adjustWeight(btn.dataset.key, parseFloat(btn.dataset.delta));
+    if (btn) {
+      adjustWeight(btn.dataset.key, parseFloat(btn.dataset.delta));
+      return;
+    }
+    // Exercise name click handler
+    const nameBtn = e.target.closest(".exercise-name-btn");
+    if (nameBtn && nameBtn.dataset.exId) {
+      openExerciseModal(nameBtn.dataset.exId);
+    }
+  });
+
+  // Keyboard handler for exercise name buttons
+  root.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      const nameBtn = e.target.closest(".exercise-name-btn");
+      if (nameBtn && nameBtn.dataset.exId) {
+        e.preventDefault();
+        openExerciseModal(nameBtn.dataset.exId);
+      }
+    }
   });
 
   renderLog();
 }
+
+// ── Exercise modal ────────────────────────────────────────────────────────────
+
+function openExerciseModal(exId) {
+  const lib = loadLibrary();
+  const ex = lib.find(e => e.id === exId);
+  if (!ex) return;
+
+  closeExerciseModal();
+
+  const backdrop = document.createElement("div");
+  backdrop.id = "exercise-modal";
+  backdrop.className = "modal-backdrop";
+
+  const dayLabels = { push: "Push", pull: "Pull", legs: "Legs" };
+
+  const stepOptions = [0, 1, 2.5, 5, 10];
+  const stepsHtml = stepOptions.map(s =>
+    `<button class="step-chip${ex.step === s ? " active" : ""}" data-step="${s}">${s === 0 ? "0" : s} kg</button>`
+  ).join("");
+
+  const dayChipsHtml = ["push", "pull", "legs"].map(d =>
+    `<button class="day-chip${ex.days.includes(d) ? " active" : ""}" data-day="${d}">${dayLabels[d]}</button>`
+  ).join("");
+
+  const tipsHtml = ex.tips ? `<p class="modal-tips">💡 ${ex.tips}</p>` : "";
+  const weightDisplay = ex.defaultWeight % 1 === 0 ? ex.defaultWeight : ex.defaultWeight.toFixed(1);
+
+  backdrop.innerHTML = `
+    <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="${ex.name}">
+      <div class="modal-header">
+        <h3 style="margin:0;font-size:1rem;">${ex.name}</h3>
+        <button class="modal-close" id="modal-close-btn" aria-label="Stäng">×</button>
+      </div>
+      <span class="muscle-badge">${ex.muscle}</span>
+      <p class="modal-description">${ex.description}</p>
+      ${tipsHtml}
+      <p class="modal-section-label">Defaultvikt</p>
+      <div class="weight-stepper" style="display:inline-flex;margin-bottom:0.5rem;">
+        <button class="stepper-btn minus" id="modal-weight-minus" aria-label="Minska vikt">−</button>
+        <span class="weight-display" id="modal-weight-display">${weightDisplay}</span>
+        <span class="weight-display-unit">kg</span>
+        <button class="stepper-btn plus" id="modal-weight-plus" aria-label="Öka vikt">+</button>
+      </div>
+      <p class="modal-section-label">Stegstorlek</p>
+      <div class="step-chips" id="step-chips-container">
+        ${stepsHtml}
+      </div>
+      <p class="modal-section-label">Pass</p>
+      <div class="day-chips" id="day-chips-container">
+        ${dayChipsHtml}
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(backdrop);
+
+  // Current editing state
+  let currentWeight = ex.defaultWeight;
+  let currentStep = ex.step;
+  let currentDays = [...ex.days];
+
+  function updateWeightDisplay() {
+    const d = document.getElementById("modal-weight-display");
+    if (d) d.textContent = currentWeight % 1 === 0 ? currentWeight : currentWeight.toFixed(1);
+  }
+
+  function saveChanges() {
+    const lib2 = loadLibrary();
+    const idx = lib2.findIndex(e => e.id === exId);
+    if (idx === -1) return;
+    lib2[idx].defaultWeight = currentWeight;
+    lib2[idx].step = currentStep;
+    lib2[idx].days = currentDays;
+    saveLibrary(lib2);
+    // Rebuild program and re-render
+    PROGRAM = buildProgramFromLibrary();
+    renderTabs();
+    renderProgram(activeDay);
+  }
+
+  // Weight stepper
+  document.getElementById("modal-weight-minus").addEventListener("click", () => {
+    currentWeight = Math.max(0, Math.round((currentWeight - (currentStep || 2.5)) * 10) / 10);
+    updateWeightDisplay();
+    saveChanges();
+  });
+  document.getElementById("modal-weight-plus").addEventListener("click", () => {
+    currentWeight = Math.max(0, Math.round((currentWeight + (currentStep || 2.5)) * 10) / 10);
+    updateWeightDisplay();
+    saveChanges();
+  });
+
+  // Step chips
+  document.getElementById("step-chips-container").addEventListener("click", (e) => {
+    const chip = e.target.closest(".step-chip");
+    if (!chip) return;
+    currentStep = parseFloat(chip.dataset.step);
+    document.querySelectorAll("#step-chips-container .step-chip").forEach(c => c.classList.remove("active"));
+    chip.classList.add("active");
+    saveChanges();
+  });
+
+  // Day chips
+  document.getElementById("day-chips-container").addEventListener("click", (e) => {
+    const chip = e.target.closest(".day-chip");
+    if (!chip) return;
+    const d = chip.dataset.day;
+    const idx = currentDays.indexOf(d);
+    if (idx === -1) {
+      currentDays.push(d);
+      chip.classList.add("active");
+    } else {
+      currentDays.splice(idx, 1);
+      chip.classList.remove("active");
+    }
+    saveChanges();
+  });
+
+  // Close handlers
+  document.getElementById("modal-close-btn").addEventListener("click", closeExerciseModal);
+  backdrop.addEventListener("click", (e) => {
+    if (e.target === backdrop) closeExerciseModal();
+  });
+}
+
+function closeExerciseModal() {
+  const m = document.getElementById("exercise-modal");
+  if (m) m.remove();
+}
+
+// ── Library overlay ───────────────────────────────────────────────────────────
+
+function openLibrary() {
+  closeLibrary();
+
+  const lib = loadLibrary();
+
+  // Group by muscle, sorted alphabetically
+  const groups = {};
+  lib.forEach(ex => {
+    if (!groups[ex.muscle]) groups[ex.muscle] = [];
+    groups[ex.muscle].push(ex);
+  });
+  const sortedMuscles = Object.keys(groups).sort((a, b) => a.localeCompare(b, "sv"));
+
+  const dayLabels = { push: "Push", pull: "Pull", legs: "Legs" };
+
+  const groupsHtml = sortedMuscles.map(muscle => {
+    const exRows = groups[muscle].map(ex => {
+      const dayPillsHtml = ex.days.map(d =>
+        `<span class="library-day-pill">${dayLabels[d] || d}</span>`
+      ).join("");
+      return `
+        <div class="library-exercise-row" data-ex-id="${ex.id}" role="button" tabindex="0">
+          <div>
+            <div class="library-ex-name">${ex.name}</div>
+            <div class="library-ex-meta">
+              <span class="muscle-badge" style="font-size:0.7rem;padding:0.1rem 0.45rem;">${ex.muscle}</span>
+              ${dayPillsHtml}
+            </div>
+          </div>
+          <span style="color:var(--muted);font-size:1.1rem;">›</span>
+        </div>
+      `;
+    }).join("");
+    return `
+      <div class="library-group-label">${muscle}</div>
+      ${exRows}
+    `;
+  }).join("");
+
+  const overlay = document.createElement("div");
+  overlay.id = "library-overlay";
+  overlay.className = "library-overlay";
+  overlay.innerHTML = `
+    <div class="library-header">
+      <h2>Övningsbibliotek</h2>
+      <button class="modal-close" id="library-close-btn" aria-label="Stäng">×</button>
+    </div>
+    <div class="library-body">
+      ${groupsHtml}
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  document.getElementById("library-close-btn").addEventListener("click", closeLibrary);
+
+  overlay.querySelector(".library-body").addEventListener("click", (e) => {
+    const row = e.target.closest(".library-exercise-row");
+    if (row && row.dataset.exId) {
+      closeLibrary();
+      openExerciseModal(row.dataset.exId);
+    }
+  });
+
+  overlay.querySelector(".library-body").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      const row = e.target.closest(".library-exercise-row");
+      if (row && row.dataset.exId) {
+        e.preventDefault();
+        closeLibrary();
+        openExerciseModal(row.dataset.exId);
+      }
+    }
+  });
+}
+
+function closeLibrary() {
+  const l = document.getElementById("library-overlay");
+  if (l) l.remove();
+}
+
+// ── Reset / log ───────────────────────────────────────────────────────────────
 
 function resetSession(dayId) {
   if (!confirm("Rensa alla bockar för detta pass?")) return;
@@ -377,7 +849,7 @@ function renderLog() {
   logEl.innerHTML = "<h2>Träningslogg</h2><ul>" + rows + "</ul>";
 }
 
-// ── Update banner ────────────────────────────────────────────────────────────
+// ── Update banner ─────────────────────────────────────────────────────────────
 function setupUpdateBanner() {
   if (!("serviceWorker" in navigator)) return;
 
@@ -425,6 +897,8 @@ function showUpdateBanner(worker) {
   });
 }
 
+// ── DOMContentLoaded ──────────────────────────────────────────────────────────
+
 document.addEventListener("DOMContentLoaded", () => {
   renderTabs();
   renderProgram(activeDay);
@@ -444,5 +918,11 @@ document.addEventListener("DOMContentLoaded", () => {
         toggle.setAttribute("aria-expanded", "false");
       }
     });
+  }
+
+  // Library button
+  const libraryBtn = document.getElementById("library-btn");
+  if (libraryBtn) {
+    libraryBtn.addEventListener("click", openLibrary);
   }
 });
