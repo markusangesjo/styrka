@@ -227,10 +227,26 @@ main {
   margin-right: 0.3rem;
 }
 
+/* checked state */
+.set-check.is-checked {
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--accent);
+}
+
+.set-check.is-checked input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
+/* ── Button row ── */
+.btn-row {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.85rem;
+}
+
 /* ── Finish button ── */
 .finish-btn {
-  margin-top: 0.85rem;
-  width: 100%;
+  flex: 1;
   padding: 0.7rem;
   border: none;
   border-radius: 10px;
@@ -243,6 +259,22 @@ main {
 
 .finish-btn:active {
   opacity: 0.85;
+}
+
+.reset-btn {
+  padding: 0.7rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.reset-btn:active {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* ── Log ── */

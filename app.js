@@ -145,7 +145,7 @@ function renderProgram() {
           const displayWeight = weight % 1 === 0 ? weight : parseFloat(weight).toFixed(1);
 
           return `<div class="set-row">
-            <label class="set-check">
+            <label class="set-check${state.sets[key] ? " is-checked" : ""}">
               <input type="checkbox" data-key="${key}" ${checked}/>
               <span>Set ${setIdx + 1}</span>
             </label>
@@ -169,20 +169,34 @@ function renderProgram() {
 
     section.appendChild(table);
 
+    const btnRow = document.createElement("div");
+    btnRow.className = "btn-row";
+
     const finishBtn = document.createElement("button");
     finishBtn.className = "finish-btn";
-    finishBtn.textContent = "Markera pass som klart";
+    finishBtn.textContent = "✓ Pass klart";
     finishBtn.addEventListener("click", () => logSession(day.id, day.name));
-    section.appendChild(finishBtn);
+
+    const resetBtn = document.createElement("button");
+    resetBtn.className = "reset-btn";
+    resetBtn.textContent = "Nytt pass";
+    resetBtn.addEventListener("click", () => resetSession(day.id));
+
+    btnRow.appendChild(finishBtn);
+    btnRow.appendChild(resetBtn);
+    section.appendChild(btnRow);
 
     root.appendChild(section);
   });
 
-  // Checkbox handler
+  // Checkbox handler — save state + update checked styling
   root.addEventListener("change", (e) => {
     if (e.target.matches('input[type="checkbox"][data-key]')) {
       state.sets[e.target.dataset.key] = e.target.checked;
       saveState(state);
+      // Toggle visual state on the parent set-check label
+      const label = e.target.closest(".set-check");
+      if (label) label.classList.toggle("is-checked", e.target.checked);
     }
   });
 
@@ -194,6 +208,19 @@ function renderProgram() {
   });
 
   renderLog();
+}
+
+function resetSession(dayId) {
+  // Clear only checkboxes for this day, keep weights and log intact
+  const day = PROGRAM.find((d) => d.id === dayId);
+  if (!day) return;
+  day.exercises.forEach((ex, exIdx) => {
+    for (let s = 0; s < ex.sets; s++) {
+      delete state.sets[setKey(dayId, exIdx, s)];
+    }
+  });
+  saveState(state);
+  renderProgram();
 }
 
 function logSession(dayId, dayName) {
@@ -239,7 +266,8 @@ function renderLog() {
             const ws = [];
             for (let s = 0; s < ex.sets; s++) {
               const k = setKey(entry.dayId, exIdx, s);
-              if (entry.weights[k] !== undefined) ws.push(entry.weights[k]);
+              const w = entry.weights[k];
+              if (w !== undefined && w !== null && w !== "" && w !== 0) ws.push(w);
             }
             if (!ws.length) return null;
             // Collapse identical weights: "20 kg ×3"
