@@ -359,11 +359,11 @@ function remainingDaySeconds(dayId, day) {
       if (state.sets[setKey(dayId, exIdx, i)]) doneEx++;
     }
     if (doneEx >= ex.sets) return s;
-    return s + (expectedExerciseSeconds(ex) * (ex.sets - doneEx)) / ex.sets;
+    return s + (expectedExerciseSeconds(ex, dayId, exIdx) * (ex.sets - doneEx)) / ex.sets;
   }, 0);
 }
 
-// "12 / 15 set · klar ca 19:14" (or without ETA when nearly done)
+// "12 / 15 set · 22 min kvar · klar ca 19:14" (or without ETA when nearly done)
 function progressText(day, dayId, done, total) {
   const remaining = remainingDaySeconds(dayId, day);
   if (remaining <= 60) return `${done} / ${total} set`;
@@ -401,8 +401,16 @@ function isTimedExercise(ex) {
 }
 
 // Estimated duration per set (s): timed exercises use target seconds,
-// rep-based exercises assume ~4 s per rep.
-function workSecondsPerSet(ex) {
+// rep-based exercises assume ~4 s per rep. Uses the actual reps value
+// (set 1) when it has been adjusted, otherwise the exercise default.
+function workSecondsPerSet(ex, dayId, exIdx) {
+  if (dayId !== undefined) {
+    const k = setKey(dayId, exIdx, 0);
+    if (state.reps && state.reps[k] !== undefined) {
+      const v = Number(state.reps[k]) || 0;
+      if (v > 0) return isTimedExercise(ex) ? v : Math.round(v * 4);
+    }
+  }
   return isTimedExercise(ex)
     ? parseDefaultSeconds(ex)
     : Math.round((parseDefaultReps(ex.reps) || 10) * 4);
@@ -414,9 +422,9 @@ function parseRestSeconds(restStr) {
 }
 
 // Expected exercise duration: work for all sets + rest between sets (not after last).
-function expectedExerciseSeconds(ex) {
+function expectedExerciseSeconds(ex, dayId, exIdx) {
   const sets = ex.sets || 3;
-  return sets * workSecondsPerSet(ex) + (sets - 1) * parseRestSeconds(ex.rest);
+  return sets * workSecondsPerSet(ex, dayId, exIdx) + (sets - 1) * parseRestSeconds(ex.rest);
 }
 
 function fmtMinutes(sec) {
@@ -508,7 +516,7 @@ function renderProgram(dayId) {
   header.className = "day-header";
 
   const total = day.exercises.reduce((s, ex) => s + ex.sets, 0);
-  const daySeconds = day.exercises.reduce((s, ex) => s + expectedExerciseSeconds(ex), 0);
+  const daySeconds = day.exercises.reduce((s, ex, i) => s + expectedExerciseSeconds(ex, day.id, i), 0);
   const done = day.exercises.reduce((s, ex, exIdx) => {
     for (let i = 0; i < ex.sets; i++) {
       if (state.sets[setKey(day.id, exIdx, i)]) s++;
@@ -602,7 +610,7 @@ function renderProgram(dayId) {
     const exAdjustDelta = timed ? 5 : 1;
     exEl.innerHTML = `
       <span class="exercise-name-btn" data-ex-id="${exId}" role="button" tabindex="0">${ex.name}</span>
-      <div class="exercise-meta"><span class="exercise-time">≈ ${fmtMinutes(expectedExerciseSeconds(ex))}</span> · ${timed ? fmtSek(ex.reps) : `${fmtSek(ex.reps)} reps`} &middot; vila ${fmtSek(ex.rest)}</div>
+      <div class="exercise-meta"><span class="exercise-time">≈ ${fmtMinutes(expectedExerciseSeconds(ex, day.id, exIdx))}</span> · ${timed ? fmtSek(ex.reps) : `${fmtSek(ex.reps)} reps`} &middot; vila ${fmtSek(ex.rest)}</div>
       <div class="ex-controls">
         <button class="ex-done-btn${allDone ? " is-done" : ""}" data-ex-done="${day.id}:${exIdx}">${allDone ? "Klar ✓" : "Klar"}</button>
         ${timed ? "" : `
@@ -618,6 +626,11 @@ function renderProgram(dayId) {
           <button class="stepper-btn plus" data-reps-all="${day.id}:${exIdx}" data-delta="${exAdjustDelta}" aria-label="Öka för alla set">+</button>
         </div>` : ""}
         ${timed ? `<button class="ex-timer-btn" data-timer-ex="${day.id}:${exIdx}" aria-label="Starta tidtagning">▶</button>` : ""}
+        <div class="weight-stepper ex-adjust-stepper">
+          <button class="stepper-btn minus" data-sets-ex="${exId}" data-day="${day.id}" data-delta="-1" aria-label="Ta bort set">−</button>
+          <span class="weight-adjust-label">${ex.sets} set</span>
+          <button class="stepper-btn plus" data-sets-ex="${exId}" data-day="${day.id}" data-delta="1" aria-label="Lägg till set">+</button>
+        </div>
       </div>
       <div class="sets-rows">${setsHtml}</div>
     `;
@@ -725,6 +738,22 @@ function renderProgram(dayId) {
       const fallback = isTimedExercise(ex) ? parseDefaultSeconds(ex) : parseDefaultReps(ex.reps);
       for (let s = 0; s < ex.sets; s++) {
         adjustReps(setKey(dayId, exIdx, s), delta, fallback ?? 0);
+      }
+      return;
+    }
+    // Exercise-level: add/remove sets (1–10), persists in library
+    const sBtn = e.target.closest("[data-sets-ex]");
+    if (sBtn) {
+      const delta = parseFloat(sBtn.dataset.delta);
+      const dayId = sBtn.dataset.day;
+      const lib = loadLibrary();
+      const idx = lib.findIndex((x) => x.id === sBtn.dataset.setsEx);
+      if (idx !== -1) {
+        lib[idx].sets = Math.min(10, Math.max(1, (lib[idx].sets || 3) + delta));
+        saveLibrary(lib);
+        PROGRAM = buildProgramFromLibrary();
+        renderTabs();
+        renderProgram(dayId);
       }
       return;
     }
@@ -938,6 +967,12 @@ function openExerciseModal(exId) {
         <span class="weight-display" id="modal-reps-display">${currentRepsVal ?? 0}</span>
         <span class="weight-display-unit">${timed ? "s" : "rep"}</span>
         <button class="stepper-btn plus" id="modal-reps-plus" aria-label="Öka">+</button>
+      </div>
+      <p class="modal-section-label">Antal set</p>
+      <div class="weight-stepper" style="display:inline-flex;margin-bottom:0.5rem;">
+        <button class="stepper-btn minus" id="modal-sets-minus" aria-label="Minska set">−</button>
+        <span class="weight-display" id="modal-sets-display">${ex.sets || 3}</span>
+        <button class="stepper-btn plus" id="modal-sets-plus" aria-label="Öka set">+</button>
       </div>`;
   const weightSectionHtml = timed ? "" : `
       <p class="modal-section-label">Defaultvikt</p>
@@ -978,6 +1013,7 @@ function openExerciseModal(exId) {
   let currentDays = [...ex.days];
   let currentRest = currentRestSec;
   let currentReps = currentRepsVal ?? 0;
+  let currentSets = ex.sets || 3;
 
   function updateWeightDisplay() {
     const d = document.getElementById("modal-weight-display");
@@ -992,6 +1028,7 @@ function openExerciseModal(exId) {
     lib2[idx].step = currentStep;
     lib2[idx].days = currentDays;
     lib2[idx].rest = `${currentRest} s`;
+    lib2[idx].sets = currentSets;
     lib2[idx].reps = timed
       ? `${currentReps} s${repsSuffix}`
       : String(currentReps);
@@ -1046,6 +1083,18 @@ function openExerciseModal(exId) {
   document.getElementById("modal-reps-plus").addEventListener("click", () => {
     currentReps = currentReps + restRepStep;
     document.getElementById("modal-reps-display").textContent = currentReps;
+    saveChanges();
+  });
+
+  // Sets stepper (1–10)
+  document.getElementById("modal-sets-minus").addEventListener("click", () => {
+    currentSets = Math.max(1, currentSets - 1);
+    document.getElementById("modal-sets-display").textContent = currentSets;
+    saveChanges();
+  });
+  document.getElementById("modal-sets-plus").addEventListener("click", () => {
+    currentSets = Math.min(10, currentSets + 1);
+    document.getElementById("modal-sets-display").textContent = currentSets;
     saveChanges();
   });
 
