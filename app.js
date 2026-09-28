@@ -595,9 +595,29 @@ function renderProgram(dayId) {
       .join("");
 
     const exId = ex.id || "";
+    let allDone = true;
+    for (let i = 0; i < ex.sets; i++) {
+      if (!state.sets[setKey(day.id, exIdx, i)]) { allDone = false; break; }
+    }
+    const exAdjustDelta = timed ? 5 : 1;
     exEl.innerHTML = `
       <span class="exercise-name-btn" data-ex-id="${exId}" role="button" tabindex="0">${ex.name}</span>
       <div class="exercise-meta"><span class="exercise-time">≈ ${fmtMinutes(expectedExerciseSeconds(ex))}</span> · ${timed ? fmtSek(ex.reps) : `${fmtSek(ex.reps)} reps`} &middot; vila ${fmtSek(ex.rest)}</div>
+      <div class="ex-controls">
+        <button class="ex-done-btn${allDone ? " is-done" : ""}" data-ex-done="${day.id}:${exIdx}">${allDone ? "Klar ✓" : "Klar"}</button>
+        ${timed ? "" : `
+        <div class="weight-stepper ex-adjust-stepper">
+          <button class="stepper-btn minus" data-weight-all="${day.id}:${exIdx}" data-delta="-${exStep}" aria-label="Minska vikt för alla set">−</button>
+          <span class="weight-adjust-label">kg</span>
+          <button class="stepper-btn plus" data-weight-all="${day.id}:${exIdx}" data-delta="${exStep}" aria-label="Öka vikt för alla set">+</button>
+        </div>`}
+        ${timed || defaultReps !== null ? `
+        <div class="reps-stepper ex-adjust-stepper">
+          <button class="stepper-btn minus" data-reps-all="${day.id}:${exIdx}" data-delta="-${exAdjustDelta}" aria-label="Minska för alla set">−</button>
+          <span class="weight-adjust-label">${timed ? "s" : "rep"}</span>
+          <button class="stepper-btn plus" data-reps-all="${day.id}:${exIdx}" data-delta="${exAdjustDelta}" aria-label="Öka för alla set">+</button>
+        </div>` : ""}
+      </div>
       <div class="sets-rows">${setsHtml}</div>
     `;
     table.appendChild(exEl);
@@ -642,6 +662,63 @@ function renderProgram(dayId) {
 
   // +/- button handler
   root.addEventListener("click", (e) => {
+    // Exercise-level: mark whole exercise done
+    const doneBtn = e.target.closest(".ex-done-btn");
+    if (doneBtn) {
+      const [dayId, exIdxStr] = doneBtn.dataset.exDone.split(":");
+      const day = PROGRAM.find((d) => d.id === dayId);
+      const exIdx = Number(exIdxStr);
+      const ex = day.exercises[exIdx];
+      let allDone = true;
+      for (let i = 0; i < ex.sets; i++) {
+        if (!state.sets[setKey(dayId, exIdx, i)]) { allDone = false; break; }
+      }
+      for (let i = 0; i < ex.sets; i++) {
+        const key = setKey(dayId, exIdx, i);
+        state.sets[key] = !allDone;
+        const input = root.querySelector(`input[type="checkbox"][data-key="${key}"]`);
+        if (input) input.checked = !allDone;
+        const label = input ? input.closest(".set-check") : null;
+        if (label) label.classList.toggle("is-checked", !allDone);
+      }
+      saveState(state);
+      doneBtn.classList.toggle("is-done", !allDone);
+      doneBtn.textContent = !allDone ? "Klar ✓" : "Klar";
+      if (navigator.vibrate && !allDone) navigator.vibrate(10);
+      updateProgress(dayId);
+      return;
+    }
+    // Exercise-level: adjust weight for all sets
+    const wAll = e.target.closest("[data-weight-all]");
+    if (wAll) {
+      const [dayId, exIdxStr] = wAll.dataset.weightAll.split(":");
+      const ex = PROGRAM.find((d) => d.id === dayId).exercises[Number(exIdxStr)];
+      const delta = parseFloat(wAll.dataset.delta);
+      for (let s = 0; s < ex.sets; s++) {
+        const key = setKey(dayId, Number(exIdxStr), s);
+        const disp = root.querySelector(`[data-weight-display="${key}"]`);
+        const cur = disp ? (parseFloat(disp.textContent) || 0) : 0;
+        const next = Math.max(0, Math.round((cur + delta) * 10) / 10);
+        state.weights[key] = next;
+        if (disp) disp.textContent = next % 1 === 0 ? next : next.toFixed(1);
+      }
+      saveState(state);
+      return;
+    }
+    // Exercise-level: adjust reps/seconds for all sets
+    const rAll = e.target.closest("[data-reps-all]");
+    if (rAll) {
+      const [dayId, exIdxStr] = rAll.dataset.repsAll.split(":");
+      const day = PROGRAM.find((d) => d.id === dayId);
+      const exIdx = Number(exIdxStr);
+      const ex = day.exercises[exIdx];
+      const delta = parseFloat(rAll.dataset.delta);
+      const fallback = isTimedExercise(ex) ? parseDefaultSeconds(ex) : parseDefaultReps(ex.reps);
+      for (let s = 0; s < ex.sets; s++) {
+        adjustReps(setKey(dayId, exIdx, s), delta, fallback ?? 0);
+      }
+      return;
+    }
     const btn = e.target.closest(".stepper-btn");
     if (btn) {
       if (btn.dataset.repsKey !== undefined) {

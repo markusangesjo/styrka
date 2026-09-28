@@ -248,6 +248,43 @@ main {
   font-weight: 600;
 }
 
+/* ── Exercise-level controls (klarmarkera hela övningen) ── */
+.ex-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.3rem 0 0.5rem;
+  flex-wrap: wrap;
+}
+
+.ex-done-btn {
+  border: 1px solid var(--border, #334155);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.ex-done-btn.is-done {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #083344;
+}
+
+.ex-adjust-stepper {
+  gap: 0.35rem;
+}
+
+.weight-adjust-label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  min-width: 1.4rem;
+  text-align: center;
+}
+
 /* ── Set rows ── */
 .sets-rows {
   display: flex;
