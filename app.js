@@ -319,9 +319,9 @@ let state = loadState();
 // renderTabs re-attach on every re-render — stacking handlers made ± buttons
 // fire many times per tap.
 function bindOnce(el, type, fn) {
-  const flag = "bound-" + type;
-  if (el.dataset[flag]) return;
-  el.dataset[flag] = "1";
+  const flag = "data-bound-" + type;
+  if (el.getAttribute(flag)) return;
+  el.setAttribute(flag, "1");
   el.addEventListener(type, fn);
 }
 
