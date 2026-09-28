@@ -199,8 +199,8 @@ main {
   color: var(--accent);
   font-size: 1.25rem;
   font-weight: 700;
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 2.9rem;
+  height: 2.9rem;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -326,4 +326,30 @@ main {
 
 .muted {
   color: var(--muted);
+}
+
+/* ── Progress bar ── */
+.progress-wrap {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.progress-bar-bg {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: #22d3ee;
+  transition: width 0.2s ease;
+}
+.progress-text {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  white-space: nowrap;
 }
