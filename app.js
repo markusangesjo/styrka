@@ -511,7 +511,7 @@ function renderProgram(dayId) {
         return `<div class="set-row">
           <label class="set-check${state.sets[key] ? " is-checked" : ""}">
             <input type="checkbox" data-key="${key}" ${checked}/>
-            <span>Set ${setIdx + 1}</span>
+            <span>${setIdx + 1}</span>
           </label>
           <div class="weight-stepper">
             <button class="stepper-btn minus" data-key="${key}" data-delta="-${exStep}" aria-label="Minska vikt">−</button>
