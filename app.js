@@ -369,6 +369,17 @@ function parseDefaultReps(repsStr) {
   return nums ? Math.max(...nums.map(Number)) : null;
 }
 
+// Time-based exercise ("30–45 sek", "30 sek / sida") → counted in seconds, not reps/kg.
+function isTimedExercise(ex) {
+  return !!(ex && ex.reps && /sek|sida/i.test(ex.reps));
+}
+
+// Target seconds from the reps string ("30–45 sek" → 45).
+function parseDefaultSeconds(ex) {
+  const nums = String(ex.reps || "").match(/\d+/g);
+  return nums ? Math.max(...nums.map(Number)) : 30;
+}
+
 // Returns the last logged reps for an exercise (from log history)
 function lastLoggedReps(dayId, exIdx) {
   for (const entry of state.log) {
@@ -482,7 +493,9 @@ function renderProgram(dayId) {
 
     const prevWeight = lastLoggedWeight(day.id, exIdx) || (ex.start ?? 0);
     const exStep = ex.step ?? 2.5;
-    const defaultReps = parseDefaultReps(ex.reps);
+    const timed = isTimedExercise(ex);
+    const defaultReps = timed ? null : parseDefaultReps(ex.reps);
+    const defaultSeconds = timed ? parseDefaultSeconds(ex) : null;
 
     const setsHtml = Array.from({ length: ex.sets })
       .map((_, setIdx) => {
@@ -492,19 +505,30 @@ function renderProgram(dayId) {
           state.weights[key] !== undefined ? state.weights[key] : prevWeight;
         const displayWeight = weight % 1 === 0 ? weight : parseFloat(weight).toFixed(1);
 
-        // Reps: saved > last logged > exercise default
+        const weightHtml = timed ? "" : `
+          <div class="weight-stepper">
+            <button class="stepper-btn minus" data-key="${key}" data-delta="-${exStep}" aria-label="Minska vikt">−</button>
+            <span class="weight-display" data-weight-display="${key}">${displayWeight}</span>
+            <span class="weight-display-unit">kg</span>
+            <button class="stepper-btn plus" data-key="${key}" data-delta="${exStep}" aria-label="Öka vikt">+</button>
+          </div>`;
+
+        // Reps / seconds: saved > last logged > exercise default
         let repsHtml = "";
-        if (defaultReps !== null) {
-          const reps =
+        if (timed || defaultReps !== null) {
+          const unit = timed ? "sek" : "rep";
+          const delta = timed ? 5 : 1;
+          const fallback = timed ? defaultSeconds : defaultReps;
+          const val =
             state.reps && state.reps[key] !== undefined
               ? state.reps[key]
-              : (lastLoggedReps(day.id, exIdx) ?? defaultReps);
+              : (lastLoggedReps(day.id, exIdx) ?? fallback);
           repsHtml = `
           <div class="reps-stepper">
-            <button class="stepper-btn minus" data-reps-key="${key}" data-delta="-1" aria-label="Minska reps">−</button>
-            <span class="reps-display" data-reps-display="${key}">${reps}</span>
-            <span class="reps-display-unit">rep</span>
-            <button class="stepper-btn plus" data-reps-key="${key}" data-delta="1" aria-label="Öka reps">+</button>
+            <button class="stepper-btn minus" data-reps-key="${key}" data-delta="-${delta}" aria-label="Minska">−</button>
+            <span class="reps-display" data-reps-display="${key}">${val}</span>
+            <span class="reps-display-unit">${unit}</span>
+            <button class="stepper-btn plus" data-reps-key="${key}" data-delta="${delta}" aria-label="Öka">+</button>
           </div>`;
         }
 
@@ -513,12 +537,7 @@ function renderProgram(dayId) {
             <input type="checkbox" data-key="${key}" ${checked}/>
             <span>${setIdx + 1}</span>
           </label>
-          <div class="weight-stepper">
-            <button class="stepper-btn minus" data-key="${key}" data-delta="-${exStep}" aria-label="Minska vikt">−</button>
-            <span class="weight-display" data-weight-display="${key}">${displayWeight}</span>
-            <span class="weight-display-unit">kg</span>
-            <button class="stepper-btn plus" data-key="${key}" data-delta="${exStep}" aria-label="Öka vikt">+</button>
-          </div>
+          ${weightHtml}
           ${repsHtml}
         </div>`;
       })
@@ -527,7 +546,7 @@ function renderProgram(dayId) {
     const exId = ex.id || "";
     exEl.innerHTML = `
       <span class="exercise-name-btn" data-ex-id="${exId}" role="button" tabindex="0">${ex.name}</span>
-      <div class="exercise-meta">${ex.reps} reps &middot; vila ${ex.rest}</div>
+      <div class="exercise-meta">${timed ? ex.reps : `${ex.reps} reps`} &middot; vila ${ex.rest}</div>
       <div class="sets-rows">${setsHtml}</div>
     `;
     table.appendChild(exEl);
@@ -580,7 +599,9 @@ function renderProgram(dayId) {
         const [dayId, exIdxStr] = repKey.split(":");
         const day = PROGRAM.find((d) => d.id === dayId);
         const ex = day ? day.exercises[Number(exIdxStr)] : null;
-        const fallback = ex ? parseDefaultReps(ex.reps) : 0;
+        const fallback = ex
+          ? (isTimedExercise(ex) ? parseDefaultSeconds(ex) : parseDefaultReps(ex.reps))
+          : 0;
         adjustReps(repKey, parseFloat(btn.dataset.delta), fallback ?? 0);
       } else {
         adjustWeight(btn.dataset.key, parseFloat(btn.dataset.delta));
@@ -634,16 +655,8 @@ function openExerciseModal(exId) {
 
   const tipsHtml = ex.tips ? `<p class="modal-tips">${ex.tips}</p>` : "";
   const weightDisplay = ex.defaultWeight % 1 === 0 ? ex.defaultWeight : ex.defaultWeight.toFixed(1);
-
-  backdrop.innerHTML = `
-    <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="${ex.name}">
-      <div class="modal-header">
-        <h3 style="margin:0;font-size:1rem;">${ex.name}</h3>
-        <button class="modal-close" id="modal-close-btn" aria-label="Stäng">×</button>
-      </div>
-      <span class="muscle-badge">${ex.muscle}</span>
-      <p class="modal-description">${ex.description}</p>
-      ${tipsHtml}
+  const timed = isTimedExercise(ex);
+  const weightSectionHtml = timed ? "" : `
       <p class="modal-section-label">Defaultvikt</p>
       <div class="weight-stepper" style="display:inline-flex;margin-bottom:0.5rem;">
         <button class="stepper-btn minus" id="modal-weight-minus" aria-label="Minska vikt">−</button>
@@ -654,7 +667,18 @@ function openExerciseModal(exId) {
       <p class="modal-section-label">Stegstorlek</p>
       <div class="step-chips" id="step-chips-container">
         ${stepsHtml}
+      </div>`;
+
+  backdrop.innerHTML = `
+    <div class="modal-sheet" role="dialog" aria-modal="true" aria-label="${ex.name}">
+      <div class="modal-header">
+        <h3 style="margin:0;font-size:1rem;">${ex.name}</h3>
+        <button class="modal-close" id="modal-close-btn" aria-label="Stäng">×</button>
       </div>
+      <span class="muscle-badge">${ex.muscle}</span>
+      <p class="modal-description">${ex.description}</p>
+      ${tipsHtml}
+      ${weightSectionHtml}
       <p class="modal-section-label">Pass</p>
       <div class="day-chips" id="day-chips-container">
         ${dayChipsHtml}
@@ -688,7 +712,8 @@ function openExerciseModal(exId) {
     renderProgram(activeDay);
   }
 
-  // Weight stepper
+  // Weight stepper (only for weight-based exercises)
+  if (document.getElementById("modal-weight-minus")) {
   document.getElementById("modal-weight-minus").addEventListener("click", () => {
     currentWeight = Math.max(0, Math.round((currentWeight - (currentStep || 2.5)) * 10) / 10);
     updateWeightDisplay();
@@ -709,6 +734,7 @@ function openExerciseModal(exId) {
     chip.classList.add("active");
     saveChanges();
   });
+  }
 
   // Day chips
   document.getElementById("day-chips-container").addEventListener("click", (e) => {
@@ -906,7 +932,7 @@ function renderLog() {
               }, [])
               .map(({ w, n }) => (n > 1 ? `${w} kg ×${n}` : `${w} kg`))
               .join(", ");
-            const repsStr = rs.length ? ` &middot; ${rs.join("/")}` : "";
+            const repsStr = rs.length ? ` &middot; ${rs.join("/")}${isTimedExercise(ex) ? " sek" : " rep"}` : "";
             return `<span class="log-ex"><em>${ex.name}:</em> ${collapsed}${repsStr}</span>`;
           })
           .filter(Boolean);
