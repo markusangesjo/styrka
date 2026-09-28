@@ -617,6 +617,7 @@ function renderProgram(dayId) {
           <span class="weight-adjust-label">${timed ? "s" : "rep"}</span>
           <button class="stepper-btn plus" data-reps-all="${day.id}:${exIdx}" data-delta="${exAdjustDelta}" aria-label="Öka för alla set">+</button>
         </div>` : ""}
+        ${timed ? `<button class="ex-timer-btn" data-timer-ex="${day.id}:${exIdx}" aria-label="Starta tidtagning">▶</button>` : ""}
       </div>
       <div class="sets-rows">${setsHtml}</div>
     `;
@@ -657,6 +658,14 @@ function renderProgram(dayId) {
       const key = e.target.dataset.key;
       const dayId = key.split(":")[0];
       updateProgress(dayId);
+      // Start rest timer when a set is completed
+      if (e.target.checked) {
+        const [, exIdxStr] = key.split(":");
+        const day = PROGRAM.find((d) => d.id === dayId);
+        const ex = day ? day.exercises[Number(exIdxStr)] : null;
+        const rest = ex ? parseRestSeconds(ex.rest) : 0;
+        if (rest > 0) startTimer("Vila · " + ex.name, rest);
+      }
     }
   });
 
@@ -719,6 +728,18 @@ function renderProgram(dayId) {
       }
       return;
     }
+    // Exercise-level: start countdown timer (timed exercises)
+    const tBtn = e.target.closest("[data-timer-ex]");
+    if (tBtn) {
+      const [dayId, exIdxStr] = tBtn.dataset.timerEx.split(":");
+      const ex = PROGRAM.find((d) => d.id === dayId).exercises[Number(exIdxStr)];
+      const key = setKey(dayId, Number(exIdxStr), 0);
+      const seconds = state.reps && state.reps[key] !== undefined
+        ? state.reps[key]
+        : parseDefaultSeconds(ex);
+      if (seconds > 0) startTimer(ex.name, seconds, true);
+      return;
+    }
     const btn = e.target.closest(".stepper-btn");
     if (btn) {
       if (btn.dataset.repsKey !== undefined) {
@@ -755,6 +776,122 @@ function renderProgram(dayId) {
   });
 
   renderLog();
+}
+
+// ── Timer overlay (vila / tidsövningar) ───────────────────────────────────────
+
+let timerInterval = null;
+let timerEndsAt = 0;
+let timerTotal = 0;
+let timerPausedLeft = 0;
+let timerBeep = false;
+
+function ensureTimerOverlay() {
+  let el = document.getElementById("timer-overlay");
+  if (el) return el;
+  el = document.createElement("div");
+  el.id = "timer-overlay";
+  el.innerHTML = `
+    <div class="timer-info">
+      <span class="timer-label"></span>
+      <span class="timer-time">0:00</span>
+    </div>
+    <div class="timer-bar"><div class="timer-bar-fill"></div></div>
+    <div class="timer-btns">
+      <button class="timer-pause" aria-label="Pausa">⏸</button>
+      <button class="timer-stop" aria-label="Avbryt timer">✕</button>
+    </div>
+  `;
+  document.body.appendChild(el);
+  el.querySelector(".timer-stop").addEventListener("click", stopTimer);
+  el.querySelector(".timer-pause").addEventListener("click", () => {
+    if (timerInterval) {
+      // pause
+      timerPausedLeft = Math.max(0, Math.round((timerEndsAt - Date.now()) / 1000));
+      clearInterval(timerInterval);
+      timerInterval = null;
+      el.querySelector(".timer-pause").textContent = "▶";
+    } else if (timerPausedLeft) {
+      // resume
+      timerEndsAt = Date.now() + timerPausedLeft * 1000;
+      timerPausedLeft = 0;
+      el.querySelector(".timer-pause").textContent = "⏸";
+      timerInterval = setInterval(tickTimer, 250);
+    }
+  });
+  return el;
+}
+
+function startTimer(label, seconds, beep) {
+  const el = ensureTimerOverlay();
+  if (timerInterval) clearInterval(timerInterval);
+  el.querySelector(".timer-label").textContent = label;
+  el.querySelector(".timer-pause").textContent = "⏸";
+  timerEndsAt = Date.now() + seconds * 1000;
+  timerTotal = seconds;
+  timerPausedLeft = 0;
+  timerBeep = !!beep;
+  timerInterval = setInterval(tickTimer, 250);
+  el.classList.add("is-active");
+  tickTimer();
+}
+
+function tickTimer() {
+  const el = document.getElementById("timer-overlay");
+  if (!el) return;
+  const left = Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000));
+  const m = Math.floor(left / 60);
+  const s = left % 60;
+  el.querySelector(".timer-time").textContent = `${m}:${String(s).padStart(2, "0")}`;
+  const fill = el.querySelector(".timer-bar-fill");
+  if (fill) fill.style.width = timerTotal ? `${(left / timerTotal) * 100}%` : "0%";
+  if (left <= 0) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    timerFinished();
+  }
+}
+
+function timerFinished() {
+  const el = document.getElementById("timer-overlay");
+  if (!el) return;
+  el.querySelector(".timer-time").textContent = "Klar ✓";
+  const fill = el.querySelector(".timer-bar-fill");
+  if (fill) fill.style.width = "0%";
+  if (timerBeep) playTimerBeep();
+  if (navigator.vibrate) navigator.vibrate([120, 80, 120]);
+  setTimeout(() => el.classList.remove("is-active"), 2500);
+}
+
+function stopTimer() {
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = null;
+  timerPausedLeft = 0;
+  const el = document.getElementById("timer-overlay");
+  if (el) el.classList.remove("is-active");
+}
+
+// Short double beep via WebAudio (no audio files needed)
+function playTimerBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.25].forEach((offset) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = 880;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const t = ctx.currentTime + offset;
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.exponentialRampToValueAtTime(0.2, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    });
+    setTimeout(() => ctx.close(), 1000);
+  } catch {
+    // audio not available — vibration still fires
+  }
 }
 
 // ── Exercise modal ────────────────────────────────────────────────────────────

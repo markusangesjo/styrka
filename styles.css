@@ -285,6 +285,80 @@ main {
   text-align: center;
 }
 
+/* ── Timer overlay (vila / tidsövningar) ── */
+#timer-overlay {
+  position: fixed;
+  left: 0.5rem;
+  right: 0.5rem;
+  bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  z-index: 50;
+  display: none;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--card);
+  border: 1px solid #334155;
+  border-radius: 14px;
+  padding: 0.6rem 0.9rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+}
+
+#timer-overlay.is-active {
+  display: flex;
+}
+
+.timer-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.timer-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timer-time {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.timer-bar {
+  flex: 1.2;
+  height: 6px;
+  background: var(--border, #334155);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.timer-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 100%;
+  transition: width 0.25s linear;
+}
+
+.timer-btns {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.timer-btns button {
+  background: transparent;
+  border: 1px solid var(--border, #334155);
+  color: var(--text);
+  border-radius: 10px;
+  width: 2.2rem;
+  height: 2.2rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
 /* ── Set rows ── */
 .sets-rows {
   display: flex;
