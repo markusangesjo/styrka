@@ -697,18 +697,12 @@ function openLibrary() {
   const groupsHtml = sortedMuscles.map(muscle => {
     const exRows = groups[muscle].map(ex => {
       const dayPillsHtml = ex.days.map(d =>
-        `<span class="library-day-pill">${dayLabels[d] || d}</span>`
+        `<span class="library-day-pill library-day-pill--${d}">${dayLabels[d] || d}</span>`
       ).join("");
       return `
         <div class="library-exercise-row" data-ex-id="${ex.id}" role="button" tabindex="0">
-          <div>
-            <div class="library-ex-name">${ex.name}</div>
-            <div class="library-ex-meta">
-              <span class="muscle-badge" style="font-size:0.7rem;padding:0.1rem 0.45rem;">${ex.muscle}</span>
-              ${dayPillsHtml}
-            </div>
-          </div>
-          <span style="color:var(--muted);font-size:1.1rem;">›</span>
+          <div class="library-ex-name">${ex.name}</div>
+          <div class="library-ex-days">${dayPillsHtml}</div>
         </div>
       `;
     }).join("");
