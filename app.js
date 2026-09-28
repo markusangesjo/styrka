@@ -127,13 +127,50 @@ function adjustWeight(key, delta) {
   if (display) display.textContent = next % 1 === 0 ? next : next.toFixed(1);
 }
 
-function renderProgram() {
+function getSmartDefault() {
+  const day = new Date().getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  if (day === 1 || day === 4) return "push";  // Mon, Thu
+  if (day === 2 || day === 5) return "pull";  // Tue, Fri
+  if (day === 3 || day === 6) return "legs";  // Wed, Sat
+  return "push"; // Sun
+}
+
+let activeDay = getSmartDefault();
+
+function renderTabs() {
+  const main = document.querySelector("main");
+  let tabBar = document.getElementById("tab-bar");
+  if (!tabBar) {
+    tabBar = document.createElement("div");
+    tabBar.id = "tab-bar";
+    tabBar.className = "tab-bar";
+    main.prepend(tabBar);
+  }
+  tabBar.innerHTML = PROGRAM.map((day) => {
+    const label = day.id.charAt(0).toUpperCase() + day.id.slice(1);
+    const isActive = day.id === activeDay;
+    return `<button data-day="${day.id}" class="${isActive ? "active" : ""}" aria-pressed="${isActive}">${label}</button>`;
+  }).join("");
+
+  tabBar.addEventListener("click", (e) => {
+    const btn = e.target.closest("button[data-day]");
+    if (!btn || btn.dataset.day === activeDay) return;
+    activeDay = btn.dataset.day;
+    renderTabs();
+    renderProgram(activeDay);
+  });
+}
+
+function renderProgram(dayId) {
+  if (!dayId) dayId = activeDay;
   const root = document.getElementById("program");
   root.innerHTML = "";
 
-  PROGRAM.forEach((day) => {
-    const section = document.createElement("section");
-    section.className = "day-card";
+  const day = PROGRAM.find((d) => d.id === dayId);
+  if (!day) return;
+
+  const section = document.createElement("section");
+  section.className = "day-card";
 
     const header = document.createElement("div");
     header.className = "day-header";
@@ -215,12 +252,11 @@ function renderProgram() {
     resetBtn.textContent = "Nytt pass";
     resetBtn.addEventListener("click", () => resetSession(day.id));
 
-    btnRow.appendChild(finishBtn);
-    btnRow.appendChild(resetBtn);
-    section.appendChild(btnRow);
+  btnRow.appendChild(finishBtn);
+  btnRow.appendChild(resetBtn);
+  section.appendChild(btnRow);
 
-    root.appendChild(section);
-  });
+  root.appendChild(section);
 
   // Checkbox handler — save state + update checked styling
   root.addEventListener("change", (e) => {
@@ -259,7 +295,7 @@ function resetSession(dayId) {
     }
   });
   saveState(state);
-  renderProgram();
+  renderProgram(dayId);
 }
 
 function logSession(dayId, dayName) {
@@ -389,7 +425,8 @@ function showUpdateBanner(worker) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  renderProgram();
+  renderTabs();
+  renderProgram(activeDay);
   setupUpdateBanner();
 
   // Info toggle
