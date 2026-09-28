@@ -42,14 +42,29 @@ body {
   background: none;
   border: none;
   color: var(--muted);
-  font-size: 1.15rem;
+  font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
-  padding: 0.2rem 0.4rem;
+  padding: 0.3rem 0.55rem;
   line-height: 1;
   border-radius: 6px;
 }
 
-.info-btn:active {
+.lib-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.3rem 0.55rem;
+  line-height: 1;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.info-btn:active,
+.lib-btn:active {
   opacity: 0.6;
 }
 

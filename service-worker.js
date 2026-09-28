@@ -1,5 +1,5 @@
 // Enkel service worker för offline-stöd (cache-first för appens egna filer)
-const CACHE_NAME = "styrka-cache-v9";
+const CACHE_NAME = "styrka-cache-v10";
 const ASSETS = [
   "./",
   "./index.html",

@@ -489,7 +489,7 @@ function renderProgram(dayId) {
 
   const finishBtn = document.createElement("button");
   finishBtn.className = "finish-btn";
-  finishBtn.textContent = "✓ Pass klart";
+  finishBtn.textContent = "Pass klart";
   finishBtn.addEventListener("click", () => logSession(day.id, day.name));
 
   const resetBtn = document.createElement("button");
@@ -571,7 +571,7 @@ function openExerciseModal(exId) {
     `<button class="day-chip${ex.days.includes(d) ? " active" : ""}" data-day="${d}">${dayLabels[d]}</button>`
   ).join("");
 
-  const tipsHtml = ex.tips ? `<p class="modal-tips">💡 ${ex.tips}</p>` : "";
+  const tipsHtml = ex.tips ? `<p class="modal-tips">${ex.tips}</p>` : "";
   const weightDisplay = ex.defaultWeight % 1 === 0 ? ex.defaultWeight : ex.defaultWeight.toFixed(1);
 
   backdrop.innerHTML = `
@@ -886,7 +886,7 @@ function showUpdateBanner(worker) {
   const banner = document.createElement("div");
   banner.id = "update-banner";
   banner.innerHTML = `
-    <span>🆕 Ny version tillgänglig</span>
+    <span>Ny version tillgänglig</span>
     <button id="update-btn">Uppdatera nu</button>
   `;
   document.body.prepend(banner);
