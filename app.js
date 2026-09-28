@@ -384,7 +384,11 @@ function progressText(day, dayId, done, total) {
 }
 
 function adjustWeight(key, delta) {
-  const current = parseFloat(state.weights[key]) || 0;
+  // Current value: saved state first, otherwise what's displayed (last-logged fallback)
+  const disp = document.querySelector(`[data-weight-display="${key}"]`);
+  const current = state.weights[key] !== undefined
+    ? (parseFloat(state.weights[key]) || 0)
+    : (disp ? (parseFloat(disp.textContent) || 0) : 0);
   const next = Math.max(0, Math.round((current + delta) * 10) / 10);
   state.weights[key] = next;
   saveState(state);
