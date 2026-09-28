@@ -345,10 +345,22 @@ function updateProgress(dayId) {
     return s;
   }, 0);
   const pct = total ? Math.round((done / total) * 100) : 0;
+  const remainingSeconds = day.exercises.reduce((s, ex, exIdx) => {
+    let doneEx = 0;
+    for (let i = 0; i < ex.sets; i++) {
+      if (state.sets[setKey(dayId, exIdx, i)]) doneEx++;
+    }
+    if (doneEx >= ex.sets) return s;
+    return s + (expectedExerciseSeconds(ex) * (ex.sets - doneEx)) / ex.sets;
+  }, 0);
   const fill = document.querySelector(`[data-progress-fill="${dayId}"]`);
   const text = document.querySelector(`[data-progress-text="${dayId}"]`);
   if (fill) fill.style.width = pct + "%";
-  if (text) text.textContent = `${done} / ${total} set`;
+  if (text) {
+    text.textContent = remainingSeconds > 60
+      ? `${done} / ${total} set · ≈${fmtMinutes(remainingSeconds)} kvar`
+      : `${done} / ${total} set`;
+  }
 }
 
 function adjustWeight(key, delta) {
@@ -376,6 +388,30 @@ function fmtSek(str) {
 }
 function isTimedExercise(ex) {
   return !!(ex && ex.reps && /sek|sida/i.test(ex.reps));
+}
+
+// Estimated duration per set (s): timed exercises use target seconds,
+// rep-based exercises assume ~4 s per rep.
+function workSecondsPerSet(ex) {
+  return isTimedExercise(ex)
+    ? parseDefaultSeconds(ex)
+    : Math.round((parseDefaultReps(ex.reps) || 10) * 4);
+}
+
+function parseRestSeconds(restStr) {
+  const m = String(restStr || "").match(/\d+/);
+  return m ? Number(m[0]) : 60;
+}
+
+// Expected exercise duration: work for all sets + rest between sets (not after last).
+function expectedExerciseSeconds(ex) {
+  const sets = ex.sets || 3;
+  return sets * workSecondsPerSet(ex) + (sets - 1) * parseRestSeconds(ex.rest);
+}
+
+function fmtMinutes(sec) {
+  const m = Math.round(sec / 60);
+  return m < 1 ? "<1 min" : `${m} min`;
 }
 
 // Target seconds from the reps string ("30–45 sek" → 45).
@@ -462,6 +498,15 @@ function renderProgram(dayId) {
   header.className = "day-header";
 
   const total = day.exercises.reduce((s, ex) => s + ex.sets, 0);
+  const daySeconds = day.exercises.reduce((s, ex) => s + expectedExerciseSeconds(ex), 0);
+  const remainingSeconds = day.exercises.reduce((s, ex, exIdx) => {
+    let doneEx = 0;
+    for (let i = 0; i < ex.sets; i++) {
+      if (state.sets[setKey(day.id, exIdx, i)]) doneEx++;
+    }
+    if (doneEx >= ex.sets) return s;
+    return s + (expectedExerciseSeconds(ex) * (ex.sets - doneEx)) / ex.sets;
+  }, 0);
   const done = day.exercises.reduce((s, ex, exIdx) => {
     for (let i = 0; i < ex.sets; i++) {
       if (state.sets[setKey(day.id, exIdx, i)]) s++;
@@ -472,7 +517,7 @@ function renderProgram(dayId) {
 
   header.innerHTML = `
     <h2>${day.name}</h2>
-    <p class="subtitle">${day.subtitle}</p>
+    <p class="subtitle">${day.subtitle} · ≈ ${fmtMinutes(daySeconds)}</p>
     <p class="warmup"><strong>Uppvärmning:</strong> ${day.warmup}</p>
   `;
   section.appendChild(header);
@@ -484,7 +529,7 @@ function renderProgram(dayId) {
     <div class="progress-bar-bg">
       <div class="progress-bar-fill" data-progress-fill="${day.id}" style="width:${pct}%"></div>
     </div>
-    <span class="progress-text" data-progress-text="${day.id}">${done} / ${total} set</span>
+    <span class="progress-text" data-progress-text="${day.id}">${done} / ${total} set${remainingSeconds > 60 ? ` · ≈${fmtMinutes(remainingSeconds)} kvar` : ""}</span>
   `;
   root.appendChild(stickyProgress);
 
@@ -550,7 +595,7 @@ function renderProgram(dayId) {
     const exId = ex.id || "";
     exEl.innerHTML = `
       <span class="exercise-name-btn" data-ex-id="${exId}" role="button" tabindex="0">${ex.name}</span>
-      <div class="exercise-meta">${timed ? fmtSek(ex.reps) : `${fmtSek(ex.reps)} reps`} &middot; vila ${fmtSek(ex.rest)}</div>
+      <div class="exercise-meta"><span class="exercise-time">≈ ${fmtMinutes(expectedExerciseSeconds(ex))}</span> · ${timed ? fmtSek(ex.reps) : `${fmtSek(ex.reps)} reps`} &middot; vila ${fmtSek(ex.rest)}</div>
       <div class="sets-rows">${setsHtml}</div>
     `;
     table.appendChild(exEl);

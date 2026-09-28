@@ -243,6 +243,11 @@ main {
   margin: 0.1rem 0 0.5rem;
 }
 
+.exercise-time {
+  color: var(--text, inherit);
+  font-weight: 600;
+}
+
 /* ── Set rows ── */
 .sets-rows {
   display: flex;
