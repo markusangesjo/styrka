@@ -909,7 +909,9 @@ function resetSession(dayId) {
 }
 
 function logSession(dayId, dayName) {
-  const today = new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const clock = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
   // Snapshot current weights and reps for this day
   const day = PROGRAM.find((d) => d.id === dayId);
@@ -935,6 +937,10 @@ function logSession(dayId, dayName) {
     dayId,
     dayName,
     date: today,
+    time: clock,
+    expectedSeconds: day
+      ? day.exercises.reduce((s, ex) => s + expectedExerciseSeconds(ex), 0)
+      : undefined,
     weights: sessionWeights,
     reps: sessionReps
   });
@@ -955,6 +961,12 @@ function renderLog() {
     .map((entry) => {
       const day = PROGRAM.find((d) => d.id === entry.dayId);
       let weightSummary = "";
+
+      const expSec = entry.expectedSeconds ?? (day
+        ? day.exercises.reduce((s, ex) => s + expectedExerciseSeconds(ex), 0)
+        : undefined);
+      const expectedStr = expSec ? ` · ≈${fmtMinutes(expSec)}` : "";
+      const timeStr = entry.time ? `, kl ${entry.time}` : "";
 
       if ((entry.weights || entry.reps) && day) {
         const lines = day.exercises
@@ -992,7 +1004,7 @@ function renderLog() {
       }
 
       return `<li>
-        <div class="log-entry-header">${entry.date} – ${entry.dayName}</div>
+        <div class="log-entry-header">${entry.date}${timeStr} – ${entry.dayName}${expectedStr}</div>
         ${weightSummary}
       </li>`;
     })
