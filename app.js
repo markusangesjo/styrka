@@ -383,6 +383,16 @@ function progressText(day, dayId, done, total) {
   return `${done} / ${total} set · ${fmtMinutes(remaining)} kvar · klar ca ${hh}:${mm}`;
 }
 
+// Refresh one exercise's time badge + progress bar after reps/sets changes
+function refreshExerciseTiming(dayId, exIdx) {
+  const day = PROGRAM.find((d) => d.id === dayId);
+  if (!day) return;
+  const ex = day.exercises[exIdx];
+  const badge = document.querySelector(`[data-ex="${dayId}:${exIdx}"] .exercise-time`);
+  if (badge) badge.textContent = `≈ ${fmtMinutes(expectedExerciseSeconds(ex, dayId, exIdx))}`;
+  updateProgress(dayId);
+}
+
 function adjustWeight(key, delta) {
   // Current value: saved state first, otherwise what's displayed (last-logged fallback)
   const disp = document.querySelector(`[data-weight-display="${key}"]`);
@@ -563,6 +573,7 @@ function renderProgram(dayId) {
   day.exercises.forEach((ex, exIdx) => {
     const exEl = document.createElement("div");
     exEl.className = "exercise";
+    exEl.dataset.ex = `${day.id}:${exIdx}`;
 
     const prevWeight = lastLoggedWeight(day.id, exIdx) || (ex.start ?? 0);
     const exStep = ex.step ?? 2.5;
@@ -753,6 +764,7 @@ function renderProgram(dayId) {
       for (let s = 0; s < ex.sets; s++) {
         adjustReps(setKey(dayId, exIdx, s), delta, fallback ?? 0);
       }
+      refreshExerciseTiming(dayId, exIdx);
       return;
     }
     // Exercise-level: add/remove sets (1–10), persists in library
@@ -795,6 +807,7 @@ function renderProgram(dayId) {
           ? (isTimedExercise(ex) ? parseDefaultSeconds(ex) : parseDefaultReps(ex.reps))
           : 0;
         adjustReps(repKey, parseFloat(btn.dataset.delta), fallback ?? 0);
+        refreshExerciseTiming(dayId, Number(exIdxStr));
       } else {
         adjustWeight(btn.dataset.key, parseFloat(btn.dataset.delta));
       }
