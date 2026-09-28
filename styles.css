@@ -358,6 +358,7 @@ main {
   color: var(--muted);
 }
 
+/* ── Progress bar ── */
 .progress-wrap {
   margin-top: 0.5rem;
   display: flex;
