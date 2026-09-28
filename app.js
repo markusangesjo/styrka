@@ -11,7 +11,7 @@ const PROGRAM = [
     subtitle: "Bröst, axlar, triceps",
     warmup: "5–10 min: rodd-/cykelmaskin + armcirklar + lätta armhävningar",
     exercises: [
-      { name: "Bänkpress (skivstång eller hantlar)", sets: 3, reps: "8–10", rest: "90 sek" },
+      { name: "Bänkpress (skivstång eller hantlar)", sets: 3, reps: "8–10", rest: "90 sek", start: 20, step: 5 },
       { name: "Axelpress, sittande (hantlar)", sets: 3, reps: "8–10", rest: "90 sek" },
       { name: "Lutande hantelpress eller cable press", sets: 3, reps: "10", rest: "75 sek" },
       { name: "Sidolyft axlar (hantlar)", sets: 3, reps: "12–15", rest: "60 sek" },
@@ -204,7 +204,8 @@ function renderProgram(dayId) {
       const exEl = document.createElement("div");
       exEl.className = "exercise";
 
-      const prevWeight = lastLoggedWeight(day.id, exIdx);
+      const prevWeight = lastLoggedWeight(day.id, exIdx) || (ex.start ?? 0);
+      const exStep = ex.step ?? WEIGHT_STEP;
 
       const setsHtml = Array.from({ length: ex.sets })
         .map((_, setIdx) => {
@@ -220,10 +221,10 @@ function renderProgram(dayId) {
               <span>Set ${setIdx + 1}</span>
             </label>
             <div class="weight-stepper">
-              <button class="stepper-btn minus" data-key="${key}" data-delta="-${WEIGHT_STEP}" aria-label="Minska vikt">−</button>
+              <button class="stepper-btn minus" data-key="${key}" data-delta="-${exStep}" aria-label="Minska vikt">−</button>
               <span class="weight-display" data-weight-display="${key}">${displayWeight}</span>
               <span class="weight-display-unit">kg</span>
-              <button class="stepper-btn plus" data-key="${key}" data-delta="${WEIGHT_STEP}" aria-label="Öka vikt">+</button>
+              <button class="stepper-btn plus" data-key="${key}" data-delta="${exStep}" aria-label="Öka vikt">+</button>
             </div>
           </div>`;
         })
