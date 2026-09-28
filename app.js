@@ -924,4 +924,27 @@ document.addEventListener("DOMContentLoaded", () => {
   if (libraryBtn) {
     libraryBtn.addEventListener("click", openLibrary);
   }
+
+  // Force update: unregister SW, clear all caches, hard reload from network
+  const forceUpdateBtn = document.getElementById("force-update-btn");
+  if (forceUpdateBtn) {
+    forceUpdateBtn.addEventListener("click", async () => {
+      forceUpdateBtn.disabled = true;
+      forceUpdateBtn.textContent = "Uppdaterar…";
+      try {
+        if ("serviceWorker" in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          for (const reg of regs) await reg.unregister();
+        }
+        if (window.caches) {
+          const keys = await caches.keys();
+          for (const key of keys) await caches.delete(key);
+        }
+      } catch {
+        // fortsätt med reload även om rensningen misslyckas
+      }
+      // Ladda om och kringgå HTTP-cache
+      location.reload(true);
+    });
+  }
 });
