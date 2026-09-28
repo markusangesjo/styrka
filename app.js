@@ -49,6 +49,9 @@ const PROGRAM = [
   }
 ];
 
+// Step size for +/- buttons (kg)
+const WEIGHT_STEP = 2.5;
+
 // Migrate v1 state (no weights) to v2
 function migrateState() {
   const v1Raw = localStorage.getItem(STORAGE_KEY_V1);
@@ -94,7 +97,17 @@ function lastLoggedWeight(dayId, exIdx) {
       }
     }
   }
-  return "";
+  return 0;
+}
+
+function adjustWeight(key, delta) {
+  const current = parseFloat(state.weights[key]) || 0;
+  const next = Math.max(0, Math.round((current + delta) * 10) / 10);
+  state.weights[key] = next;
+  saveState(state);
+  // Update the display
+  const display = document.querySelector(`[data-weight-display="${key}"]`);
+  if (display) display.textContent = next % 1 === 0 ? next : next.toFixed(1);
 }
 
 function renderProgram() {
@@ -127,26 +140,20 @@ function renderProgram() {
         .map((_, setIdx) => {
           const key = setKey(day.id, exIdx, setIdx);
           const checked = state.sets[key] ? "checked" : "";
-          // Use saved weight for this set, fall back to last logged weight
           const weight =
             state.weights[key] !== undefined ? state.weights[key] : prevWeight;
+          const displayWeight = weight % 1 === 0 ? weight : parseFloat(weight).toFixed(1);
+
           return `<div class="set-row">
             <label class="set-check">
               <input type="checkbox" data-key="${key}" ${checked}/>
               <span>Set ${setIdx + 1}</span>
             </label>
-            <div class="weight-input-wrap">
-              <input
-                type="number"
-                class="weight-input"
-                data-weight-key="${key}"
-                value="${weight}"
-                min="0"
-                step="0.5"
-                placeholder="–"
-                aria-label="Vikt för set ${setIdx + 1}"
-              />
-              <span class="weight-unit">kg</span>
+            <div class="weight-stepper">
+              <button class="stepper-btn minus" data-key="${key}" data-delta="-${WEIGHT_STEP}" aria-label="Minska vikt">−</button>
+              <span class="weight-display" data-weight-display="${key}">${displayWeight}</span>
+              <span class="weight-display-unit">kg</span>
+              <button class="stepper-btn plus" data-key="${key}" data-delta="${WEIGHT_STEP}" aria-label="Öka vikt">+</button>
             </div>
           </div>`;
         })
@@ -177,27 +184,14 @@ function renderProgram() {
       state.sets[e.target.dataset.key] = e.target.checked;
       saveState(state);
     }
-    if (e.target.matches('input[type="number"][data-weight-key]')) {
-      const val = e.target.value.trim();
-      state.weights[e.target.dataset.weightKey] =
-        val === "" ? "" : parseFloat(val);
-      saveState(state);
-    }
   });
 
-  // Also save weight on blur (handles mobile keyboards that don't fire change)
-  root.addEventListener(
-    "blur",
-    (e) => {
-      if (e.target.matches('input[type="number"][data-weight-key]')) {
-        const val = e.target.value.trim();
-        state.weights[e.target.dataset.weightKey] =
-          val === "" ? "" : parseFloat(val);
-        saveState(state);
-      }
-    },
-    true
-  );
+  // +/- button handler
+  root.addEventListener("click", (e) => {
+    const btn = e.target.closest(".stepper-btn");
+    if (!btn) return;
+    adjustWeight(btn.dataset.key, parseFloat(btn.dataset.delta));
+  });
 
   renderLog();
 }
@@ -212,8 +206,9 @@ function logSession(dayId, dayName) {
     day.exercises.forEach((ex, exIdx) => {
       for (let s = 0; s < ex.sets; s++) {
         const k = setKey(dayId, exIdx, s);
-        if (state.weights[k] !== undefined && state.weights[k] !== "") {
-          sessionWeights[k] = state.weights[k];
+        const w = state.weights[k];
+        if (w !== undefined && w !== "" && w !== 0) {
+          sessionWeights[k] = w;
         }
       }
     });
@@ -247,7 +242,7 @@ function renderLog() {
               if (entry.weights[k] !== undefined) ws.push(entry.weights[k]);
             }
             if (!ws.length) return null;
-            // Collapse identical weights: "20 kg ×3" instead of "20, 20, 20"
+            // Collapse identical weights: "20 kg ×3"
             const collapsed = ws
               .reduce((acc, w) => {
                 if (acc.length && acc[acc.length - 1].w === w) {
@@ -278,12 +273,71 @@ function renderLog() {
   logEl.innerHTML = "<h2>Träningslogg</h2><ul>" + rows + "</ul>";
 }
 
+// ── Update banner ────────────────────────────────────────────────────────────
+function setupUpdateBanner() {
+  if (!("serviceWorker" in navigator)) return;
+
+  navigator.serviceWorker.register("service-worker.js").then((reg) => {
+    // A new SW is waiting — show banner immediately
+    if (reg.waiting) showUpdateBanner(reg.waiting);
+
+    // A new SW installs while the page is open
+    reg.addEventListener("updatefound", () => {
+      const newWorker = reg.installing;
+      newWorker.addEventListener("statechange", () => {
+        if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+          showUpdateBanner(newWorker);
+        }
+      });
+    });
+  }).catch(() => {
+    // offline support is a bonus, fail silently
+  });
+
+  // When the SW activates (after skipWaiting), reload the page
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
+}
+
+function showUpdateBanner(worker) {
+  const existing = document.getElementById("update-banner");
+  if (existing) return;
+
+  const banner = document.createElement("div");
+  banner.id = "update-banner";
+  banner.innerHTML = `
+    <span>🆕 Ny version tillgänglig</span>
+    <button id="update-btn">Uppdatera nu</button>
+  `;
+  document.body.prepend(banner);
+
+  document.getElementById("update-btn").addEventListener("click", () => {
+    worker.postMessage({ type: "SKIP_WAITING" });
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   renderProgram();
+  setupUpdateBanner();
 
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("service-worker.js").catch(() => {
-      /* offline-stöd är en bonus, ignorera fel tyst */
+  // Info toggle
+  const toggle = document.getElementById("info-toggle");
+  const panel = document.getElementById("info-panel");
+  if (toggle && panel) {
+    toggle.addEventListener("click", () => {
+      const hidden = panel.hasAttribute("hidden");
+      if (hidden) {
+        panel.removeAttribute("hidden");
+        toggle.setAttribute("aria-expanded", "true");
+      } else {
+        panel.setAttribute("hidden", "");
+        toggle.setAttribute("aria-expanded", "false");
+      }
     });
   }
 });

@@ -1,5 +1,5 @@
 // Enkel service worker för offline-stöd (cache-first för appens egna filer)
-const CACHE_NAME = "styrka-cache-v2";
+const CACHE_NAME = "styrka-cache-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -13,7 +13,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
-  self.skipWaiting();
+  // Don't skipWaiting automatically — wait for user to confirm update
 });
 
 self.addEventListener("activate", (event) => {
@@ -41,4 +41,11 @@ self.addEventListener("fetch", (event) => {
       );
     })
   );
+});
+
+// Allow the app to trigger activation on user confirmation
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
