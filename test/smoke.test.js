@@ -53,11 +53,17 @@ check(`weight + fires exactly once (${before} → ${after})`, after === before +
 plusBtn.dispatchEvent(new w.MouseEvent("click", { bubbles: true }));
 check("second tap also +5", parseFloat(disp.textContent) === before + 10);
 
-// Exercise-level "Klar" checks all sets
-const doneBtn = w.document.querySelector(".ex-done-btn");
+// Exercise-level "Klar" checks all sets (skip warmup card, it has its own)
+const doneBtn = [...w.document.querySelectorAll(".ex-done-btn")]
+  .find((b) => !b.closest(".warmup-exercise"));
 doneBtn.dispatchEvent(new w.MouseEvent("click", { bubbles: true }));
 const checked = w.document.querySelectorAll('input[type="checkbox"]:checked').length;
 check("exercise-level Klar checks sets", checked > 0);
+
+// Warmup card exists with its own Klar + timer
+const warmDone = w.document.querySelector(".warmup-exercise .ex-done-btn");
+check("warmup card with Klar button", !!warmDone);
+check("warmup timer button", !!w.document.querySelector(".warmup-exercise .ex-timer-btn"));
 
 // Sets stepper re-renders without errors
 const setPlus = w.document.querySelector("[data-sets-ex].plus");

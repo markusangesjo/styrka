@@ -241,6 +241,45 @@ const DEFAULT_LIBRARY = [
     reps: "15",
     rest: "45 sek",
     days: ["legs"]
+  },
+  {
+    id: "uppvarmning-push",
+    name: "Uppvärmning – Push",
+    muscle: "Uppvärmning",
+    description: "5–10 min: rodd-/cykelmaskin + armcirklar + lätta armhävningar",
+    tips: "",
+    defaultWeight: 0,
+    step: 0,
+    sets: 1,
+    reps: "8 min",
+    rest: "0 s",
+    days: ["push"]
+  },
+  {
+    id: "uppvarmning-pull",
+    name: "Uppvärmning – Pull",
+    muscle: "Uppvärmning",
+    description: "5–10 min: rodd-/cykelmaskin + axelrullningar + band pull-apart",
+    tips: "",
+    defaultWeight: 0,
+    step: 0,
+    sets: 1,
+    reps: "8 min",
+    rest: "0 s",
+    days: ["pull"]
+  },
+  {
+    id: "uppvarmning-legs",
+    name: "Uppvärmning – Legs",
+    muscle: "Uppvärmning",
+    description: "5–10 min: cykel + höftcirklar + kroppsviktsknäböj",
+    tips: "",
+    defaultWeight: 0,
+    step: 0,
+    sets: 1,
+    reps: "8 min",
+    rest: "0 s",
+    days: ["legs"]
   }
 ];
 
@@ -249,6 +288,14 @@ const DEFAULT_LIBRARY = [
 function initLibrary() {
   if (localStorage.getItem(LIBRARY_KEY)) return;
   localStorage.setItem(LIBRARY_KEY, JSON.stringify(DEFAULT_LIBRARY));
+}
+
+// Add warmup entries to already-initialized libraries
+function ensureWarmupInLibrary() {
+  const lib = loadLibrary();
+  if (lib.some((e) => e.muscle === "Uppvärmning")) return;
+  DEFAULT_LIBRARY.filter((e) => e.muscle === "Uppvärmning").forEach((w) => lib.push(w));
+  saveLibrary(lib);
 }
 
 function loadLibrary() {
@@ -273,7 +320,7 @@ function buildProgramFromLibrary() {
   return days.map(day => ({
     ...day,
     exercises: lib
-      .filter(ex => ex.days.includes(day.id))
+      .filter(ex => ex.days.includes(day.id) && ex.muscle !== "Uppvärmning")
       .map(ex => ({ name: ex.name, id: ex.id, sets: ex.sets, reps: ex.reps, rest: ex.rest, start: ex.defaultWeight, step: ex.step }))
   }));
 }
@@ -310,6 +357,7 @@ function saveState(state) {
 // ── Init library + program ────────────────────────────────────────────────────
 
 initLibrary();
+ensureWarmupInLibrary();
 let PROGRAM = buildProgramFromLibrary();
 let state = loadState();
 
@@ -378,7 +426,10 @@ function remainingDaySeconds(dayId, day) {
     remaining += (expectedExerciseSeconds(ex, dayId, exIdx) * (ex.sets - doneEx)) / ex.sets;
   });
   remaining += Math.max(0, remainingExCount - 1) * SETUP_SEC;
-  if (!anyDone) remaining += WARMUP_SEC;
+  if (!state.sets["warmup:" + dayId]) {
+    const warm = warmupForDay(dayId);
+    remaining += warm ? expectedExerciseSeconds(warm) : WARMUP_SEC;
+  }
   return remaining;
 }
 
@@ -430,7 +481,7 @@ function fmtSek(str) {
   return String(str ?? "").replace(/sek/g, "s");
 }
 function isTimedExercise(ex) {
-  return !!(ex && ex.reps && /sek|sida|\bs\b/i.test(ex.reps));
+  return !!(ex && ex.reps && /sek|sida|\bs\b|min/i.test(ex.reps));
 }
 
 // Estimated duration per set (s): timed exercises use target seconds,
@@ -471,15 +522,26 @@ const WARMUP_SEC = 480;
 
 // Full day estimate: warmup + all exercises + setup between them
 function dayTotalSeconds(day) {
+  const warm = warmupForDay(day.id);
   return day.exercises.reduce((s, ex, i) => s + expectedExerciseSeconds(ex, day.id, i), 0)
     + Math.max(0, day.exercises.length - 1) * SETUP_SEC
-    + WARMUP_SEC;
+    + (warm ? expectedExerciseSeconds(warm) : WARMUP_SEC);
 }
 
 // Target seconds from the reps string ("30–45 sek" → 45).
 function parseDefaultSeconds(ex) {
-  const nums = String(ex.reps || "").match(/\d+/g);
+  const s = String(ex.reps || "");
+  if (/min/i.test(s)) {
+    const nums = s.match(/\d+/g);
+    if (nums) return Math.max(...nums.map(Number)) * 60;
+  }
+  const nums = s.match(/\d+/g);
   return nums ? Math.max(...nums.map(Number)) : 30;
+}
+
+// Warmup library entry for a day + its seconds
+function warmupForDay(dayId) {
+  return loadLibrary().find((e) => e.muscle === "Uppvärmning" && e.days.includes(dayId)) || null;
 }
 
 // Returns the last logged reps for an exercise (from log history)
@@ -559,20 +621,20 @@ function renderProgram(dayId) {
   const header = document.createElement("div");
   header.className = "day-header";
 
-  const total = day.exercises.reduce((s, ex) => s + ex.sets, 0);
+  const warmEx = warmupForDay(day.id);
+  const total = day.exercises.reduce((s, ex) => s + ex.sets, 0) + (warmEx ? 1 : 0);
   const daySeconds = dayTotalSeconds(day);
   const done = day.exercises.reduce((s, ex, exIdx) => {
     for (let i = 0; i < ex.sets; i++) {
       if (state.sets[setKey(day.id, exIdx, i)]) s++;
     }
     return s;
-  }, 0);
+  }, 0) + (warmEx && state.sets["warmup:" + day.id] ? 1 : 0);
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   header.innerHTML = `
     <h2>${day.name}</h2>
     <p class="subtitle">${day.subtitle} · ≈ ${fmtMinutes(daySeconds)}</p>
-    <p class="warmup"><strong>Uppvärmning:</strong> ${day.warmup}</p>
   `;
   section.appendChild(header);
 
@@ -589,6 +651,24 @@ function renderProgram(dayId) {
 
   const table = document.createElement("div");
   table.className = "exercise-list";
+
+  // Warmup card — from the exercise library, first in the list
+  if (warmEx) {
+    const warmEl = document.createElement("div");
+    warmEl.className = "exercise warmup-exercise";
+    warmEl.dataset.ex = `warmup:${day.id}`;
+    const warmDone = state.sets["warmup:" + day.id];
+    const warmSec = parseDefaultSeconds(warmEx);
+    warmEl.innerHTML = `
+      <span class="exercise-name-btn" data-ex-id="${warmEx.id}" role="button" tabindex="0">${warmEx.name}</span>
+      <div class="exercise-meta"><span class="exercise-time">≈ ${fmtMinutes(warmSec)}</span> · ${fmtSek(warmEx.reps)}</div>
+      <div class="ex-controls">
+        <button class="ex-done-btn${warmDone ? " is-done" : ""}" data-warmup-done="${day.id}">${warmDone ? "Klar ✓" : "Klar"}</button>
+        <button class="ex-timer-btn" data-timer-warmup="${day.id}" aria-label="Starta uppvärmningstimer">▶</button>
+      </div>
+    `;
+    table.appendChild(warmEl);
+  }
 
   day.exercises.forEach((ex, exIdx) => {
     const exEl = document.createElement("div");
@@ -729,6 +809,25 @@ function renderProgram(dayId) {
 
   // +/- button handler
   bindOnce(root, "click", (e) => {
+    // Warmup: mark done
+    const warmDoneBtn = e.target.closest("[data-warmup-done]");
+    if (warmDoneBtn) {
+      const key = "warmup:" + warmDoneBtn.dataset.warmupDone;
+      state.sets[key] = !state.sets[key];
+      saveState(state);
+      if (navigator.vibrate) navigator.vibrate(10);
+      warmDoneBtn.classList.toggle("is-done", state.sets[key]);
+      warmDoneBtn.textContent = state.sets[key] ? "Klar ✓" : "Klar";
+      updateProgress(warmDoneBtn.dataset.warmupDone);
+      return;
+    }
+    // Warmup: start timer
+    const warmTimer = e.target.closest("[data-timer-warmup]");
+    if (warmTimer) {
+      const wex = warmupForDay(warmTimer.dataset.timerWarmup);
+      if (wex) startTimer(wex.name, parseDefaultSeconds(wex), true);
+      return;
+    }
     // Exercise-level: mark whole exercise done
     const doneBtn = e.target.closest(".ex-done-btn");
     if (doneBtn) {
@@ -1077,7 +1176,9 @@ function openExerciseModal(exId) {
     lib2[idx].rest = `${currentRest} s`;
     lib2[idx].sets = currentSets;
     lib2[idx].reps = timed
-      ? `${currentReps} s${repsSuffix}`
+      ? (/min/i.test(ex.reps || "")
+        ? `${Math.max(1, Math.round(currentReps / 60))} min${repsSuffix}`
+        : `${currentReps} s${repsSuffix}`)
       : String(currentReps);
     saveLibrary(lib2);
     // Rebuild program and re-render
@@ -1111,7 +1212,7 @@ function openExerciseModal(exId) {
   }
 
   // Rest timer / default reps steppers
-  const restRepStep = timed ? 5 : 1;
+  const restRepStep = timed ? (currentRepsVal >= 120 ? 30 : 5) : 1;
   document.getElementById("modal-rest-minus").addEventListener("click", () => {
     currentRest = Math.max(0, currentRest - 15);
     document.getElementById("modal-rest-display").textContent = currentRest;
