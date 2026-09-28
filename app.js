@@ -1508,9 +1508,13 @@ function renderLog() {
 
   const rows = state.log
     .slice(0, 20)
-    .map((entry) => {
+    .map((entry, sliceIdx) => {
+      const logIdx = state.log.indexOf(entry);
       const day = PROGRAM.find((d) => d.id === entry.dayId);
       let weightSummary = "";
+      const hasSetData =
+        (entry.weights && Object.keys(entry.weights).length) ||
+        (entry.reps && Object.keys(entry.reps).length);
 
       const expSec = entry.expectedSeconds ?? (day ? dayTotalSeconds(day) : undefined);
       const expectedStr = expSec ? ` · ≈${fmtMinutes(expSec)}` : "";
@@ -1551,14 +1555,52 @@ function renderLog() {
         }
       }
 
+      const fitBtn = hasSetData
+        ? `<button class="fit-export-btn" data-fit-index="${logIdx}">⬆ Garmin</button>`
+        : "";
+
       return `<li>
-        <div class="log-entry-header">${entry.date}${timeStr} – ${entry.dayName}${expectedStr}</div>
+        <div class="log-entry-header">${entry.date}${timeStr} – ${entry.dayName}${expectedStr}${fitBtn}</div>
         ${weightSummary}
       </li>`;
     })
     .join("");
 
-  logEl.innerHTML = "<h2>Träningslogg</h2><ul>" + rows + "</ul>";
+  logEl.innerHTML = `<h2>Träningslogg</h2><ul class="log-list">${rows}</ul>`;
+  bindOnce(logEl, "click", (e) => {
+    const btn = e.target.closest(".fit-export-btn");
+    if (!btn) return;
+    exportGarminFit(Number(btn.getAttribute("data-fit-index")));
+  });
+}
+
+// ── Garmin FIT-export ────────────────────────────────────────────────────────
+
+function exportGarminFit(idx) {
+  const entry = state.log[idx];
+  if (!entry) return;
+  const day = PROGRAM.find((d) => d.id === entry.dayId);
+  try {
+    const bytes = StyrkaFit.buildStrengthFit(entry, day ? day.exercises : []);
+    const filename = `styrka-${entry.dayId}-${entry.date}.fit`;
+    const blob = new Blob([bytes], { type: "application/octet-stream" });
+    const file = new File([blob], filename, { type: "application/octet-stream" });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: filename }).catch(() => {});
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      a.remove();
+    }
+  } catch (err) {
+    alert("Kunde inte skapa Garmin-fil: " + err.message);
+  }
 }
 
 // ── Update banner ─────────────────────────────────────────────────────────────
