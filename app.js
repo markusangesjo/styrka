@@ -345,7 +345,15 @@ function updateProgress(dayId) {
     return s;
   }, 0);
   const pct = total ? Math.round((done / total) * 100) : 0;
-  const remainingSeconds = day.exercises.reduce((s, ex, exIdx) => {
+  const fill = document.querySelector(`[data-progress-fill="${dayId}"]`);
+  const text = document.querySelector(`[data-progress-text="${dayId}"]`);
+  if (fill) fill.style.width = pct + "%";
+  if (text) text.textContent = progressText(day, dayId, done, total);
+}
+
+// Remaining expected seconds for a day, scaled by unchecked sets per exercise.
+function remainingDaySeconds(dayId, day) {
+  return day.exercises.reduce((s, ex, exIdx) => {
     let doneEx = 0;
     for (let i = 0; i < ex.sets; i++) {
       if (state.sets[setKey(dayId, exIdx, i)]) doneEx++;
@@ -353,14 +361,16 @@ function updateProgress(dayId) {
     if (doneEx >= ex.sets) return s;
     return s + (expectedExerciseSeconds(ex) * (ex.sets - doneEx)) / ex.sets;
   }, 0);
-  const fill = document.querySelector(`[data-progress-fill="${dayId}"]`);
-  const text = document.querySelector(`[data-progress-text="${dayId}"]`);
-  if (fill) fill.style.width = pct + "%";
-  if (text) {
-    text.textContent = remainingSeconds > 60
-      ? `${done} / ${total} set · ≈${fmtMinutes(remainingSeconds)} kvar`
-      : `${done} / ${total} set`;
-  }
+}
+
+// "12 / 15 set · klar ca 19:14" (or without ETA when nearly done)
+function progressText(day, dayId, done, total) {
+  const remaining = remainingDaySeconds(dayId, day);
+  if (remaining <= 60) return `${done} / ${total} set`;
+  const eta = new Date(Date.now() + remaining * 1000);
+  const hh = String(eta.getHours()).padStart(2, "0");
+  const mm = String(eta.getMinutes()).padStart(2, "0");
+  return `${done} / ${total} set · klar ca ${hh}:${mm}`;
 }
 
 function adjustWeight(key, delta) {
@@ -499,14 +509,6 @@ function renderProgram(dayId) {
 
   const total = day.exercises.reduce((s, ex) => s + ex.sets, 0);
   const daySeconds = day.exercises.reduce((s, ex) => s + expectedExerciseSeconds(ex), 0);
-  const remainingSeconds = day.exercises.reduce((s, ex, exIdx) => {
-    let doneEx = 0;
-    for (let i = 0; i < ex.sets; i++) {
-      if (state.sets[setKey(day.id, exIdx, i)]) doneEx++;
-    }
-    if (doneEx >= ex.sets) return s;
-    return s + (expectedExerciseSeconds(ex) * (ex.sets - doneEx)) / ex.sets;
-  }, 0);
   const done = day.exercises.reduce((s, ex, exIdx) => {
     for (let i = 0; i < ex.sets; i++) {
       if (state.sets[setKey(day.id, exIdx, i)]) s++;
@@ -529,7 +531,7 @@ function renderProgram(dayId) {
     <div class="progress-bar-bg">
       <div class="progress-bar-fill" data-progress-fill="${day.id}" style="width:${pct}%"></div>
     </div>
-    <span class="progress-text" data-progress-text="${day.id}">${done} / ${total} set${remainingSeconds > 60 ? ` · ≈${fmtMinutes(remainingSeconds)} kvar` : ""}</span>
+    <span class="progress-text" data-progress-text="${day.id}">${progressText(day, day.id, done, total)}</span>
   `;
   root.appendChild(stickyProgress);
 
