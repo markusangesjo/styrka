@@ -585,6 +585,22 @@ main {
   margin-bottom: 0.2rem;
 }
 
+.fit-export-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  margin-left: 8px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.fit-export-btn:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .log-weights {
   display: flex;
   flex-direction: column;
