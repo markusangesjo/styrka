@@ -315,6 +315,16 @@ let state = loadState();
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Bind a delegated listener only once per element+type. renderProgram and
+// renderTabs re-attach on every re-render — stacking handlers made ± buttons
+// fire many times per tap.
+function bindOnce(el, type, fn) {
+  const flag = "bound-" + type;
+  if (el.dataset[flag]) return;
+  el.dataset[flag] = "1";
+  el.addEventListener(type, fn);
+}
+
 function setKey(dayId, exIdx, setIdx) {
   return `${dayId}:${exIdx}:${setIdx}`;
 }
@@ -490,7 +500,7 @@ function renderTabs() {
     return `<button data-day="${day.id}" class="${isActive ? "active" : ""}" aria-pressed="${isActive}">${label}</button>`;
   }).join("");
 
-  tabBar.addEventListener("click", (e) => {
+  bindOnce(tabBar, "click", (e) => {
     const btn = e.target.closest("button[data-day]");
     if (!btn || btn.dataset.day === activeDay) return;
     activeDay = btn.dataset.day;
@@ -659,7 +669,7 @@ function renderProgram(dayId) {
   root.appendChild(section);
 
   // Checkbox handler — save state + update checked styling
-  root.addEventListener("change", (e) => {
+  bindOnce(root, "change", (e) => {
     if (e.target.matches('input[type="checkbox"][data-key]')) {
       state.sets[e.target.dataset.key] = e.target.checked;
       saveState(state);
@@ -683,7 +693,7 @@ function renderProgram(dayId) {
   });
 
   // +/- button handler
-  root.addEventListener("click", (e) => {
+  bindOnce(root, "click", (e) => {
     // Exercise-level: mark whole exercise done
     const doneBtn = e.target.closest(".ex-done-btn");
     if (doneBtn) {
@@ -794,7 +804,7 @@ function renderProgram(dayId) {
   });
 
   // Keyboard handler for exercise name buttons
-  root.addEventListener("keydown", (e) => {
+  bindOnce(root, "keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
       const nameBtn = e.target.closest(".exercise-name-btn");
       if (nameBtn && nameBtn.dataset.exId) {
