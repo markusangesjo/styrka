@@ -243,41 +243,119 @@ const DEFAULT_LIBRARY = [
     days: ["legs"]
   },
   {
-    id: "uppvarmning-push",
-    name: "Uppvärmning – Push",
+    id: "varm-cykel",
+    name: "Uppvärmning: Cykel (låg intensitet)",
     muscle: "Uppvärmning",
-    description: "5–10 min: rodd-/cykelmaskin + armcirklar + lätta armhävningar",
+    description: "5 min lätt cykling för att få upp pulsen och värma upp benen.",
     tips: "",
     defaultWeight: 0,
     step: 0,
     sets: 1,
-    reps: "8 min",
+    reps: "5 min",
     rest: "0 s",
-    days: ["push"]
+    days: ["push", "legs"]
   },
   {
-    id: "uppvarmning-pull",
-    name: "Uppvärmning – Pull",
+    id: "varm-rodd",
+    name: "Uppvärmning: Roddmaskin (lätt)",
     muscle: "Uppvärmning",
-    description: "5–10 min: rodd-/cykelmaskin + axelrullningar + band pull-apart",
+    description: "5 min lätt rodd för att värma upp rygg och armar.",
     tips: "",
     defaultWeight: 0,
     step: 0,
     sets: 1,
-    reps: "8 min",
+    reps: "5 min",
     rest: "0 s",
     days: ["pull"]
   },
   {
-    id: "uppvarmning-legs",
-    name: "Uppvärmning – Legs",
+    id: "varm-loppning",
+    name: "Uppvärmning: Löpning (lätt jogg)",
     muscle: "Uppvärmning",
-    description: "5–10 min: cykel + höftcirklar + kroppsviktsknäböj",
+    description: "5 min lätt jogg. Alternativ till cykel eller rodd.",
     tips: "",
     defaultWeight: 0,
     step: 0,
     sets: 1,
-    reps: "8 min",
+    reps: "5 min",
+    rest: "0 s",
+    days: []
+  },
+  {
+    id: "varm-armcirklar",
+    name: "Uppvärmning: Armcirklar",
+    muscle: "Uppvärmning",
+    description: "1 min stora och små cirklar framåt och bakåt.",
+    tips: "",
+    defaultWeight: 0,
+    step: 0,
+    sets: 1,
+    reps: "1 min",
+    rest: "0 s",
+    days: ["push"]
+  },
+  {
+    id: "varm-armhavn",
+    name: "Uppvärmning: Armhävningar (lätta)",
+    muscle: "Uppvärmning",
+    description: "1–2 min lätta armhävningar (på knäna om det behövs) för bröst och triceps.",
+    tips: "",
+    defaultWeight: 0,
+    step: 0,
+    sets: 1,
+    reps: "2 min",
+    rest: "0 s",
+    days: ["push"]
+  },
+  {
+    id: "varm-axelrullningar",
+    name: "Uppvärmning: Axelrullningar",
+    muscle: "Uppvärmning",
+    description: "1 min rullningar med axlarna bakåt och framåt.",
+    tips: "",
+    defaultWeight: 0,
+    step: 0,
+    sets: 1,
+    reps: "1 min",
+    rest: "0 s",
+    days: ["pull"]
+  },
+  {
+    id: "varm-pull-apart",
+    name: "Uppvärmning: Band pull-apart",
+    muscle: "Uppvärmning",
+    description: "2 min lätta repetitioner med elastikband för skulderblad och bakre axlar.",
+    tips: "",
+    defaultWeight: 0,
+    step: 0,
+    sets: 1,
+    reps: "2 min",
+    rest: "0 s",
+    days: ["pull"]
+  },
+  {
+    id: "varm-hoftcirklar",
+    name: "Uppvärmning: Höftcirklar",
+    muscle: "Uppvärmning",
+    description: "1 min cirklar med höfterna i båda riktningarna.",
+    tips: "",
+    defaultWeight: 0,
+    step: 0,
+    sets: 1,
+    reps: "1 min",
+    rest: "0 s",
+    days: ["legs"]
+  },
+  {
+    id: "varm-knaboj",
+    name: "Uppvärmning: Kroppsviktsknäböj",
+    muscle: "Uppvärmning",
+    description: "2 min lätta kroppsviktsknäböj för att värma upp ben och höfter.",
+    tips: "",
+    defaultWeight: 0,
+    step: 0,
+    sets: 1,
+    reps: "2 min",
     rest: "0 s",
     days: ["legs"]
   }
@@ -290,12 +368,14 @@ function initLibrary() {
   localStorage.setItem(LIBRARY_KEY, JSON.stringify(DEFAULT_LIBRARY));
 }
 
-// Add warmup entries to already-initialized libraries
+// Replace old warmup entries with the warmup catalog
 function ensureWarmupInLibrary() {
   const lib = loadLibrary();
-  if (lib.some((e) => e.muscle === "Uppvärmning")) return;
-  DEFAULT_LIBRARY.filter((e) => e.muscle === "Uppvärmning").forEach((w) => lib.push(w));
-  saveLibrary(lib);
+  const catalog = DEFAULT_LIBRARY.filter((e) => e.muscle === "Uppvärmning");
+  if (lib.some((e) => catalog.some((c) => c.id === e.id))) return;
+  const cleaned = lib.filter((e) => e.muscle !== "Uppvärmning");
+  catalog.forEach((c) => cleaned.push(c));
+  saveLibrary(cleaned);
 }
 
 function loadLibrary() {
@@ -426,10 +506,7 @@ function remainingDaySeconds(dayId, day) {
     remaining += (expectedExerciseSeconds(ex, dayId, exIdx) * (ex.sets - doneEx)) / ex.sets;
   });
   remaining += Math.max(0, remainingExCount - 1) * SETUP_SEC;
-  if (!state.sets["warmup:" + dayId]) {
-    const warm = warmupForDay(dayId);
-    remaining += warm ? expectedExerciseSeconds(warm) : WARMUP_SEC;
-  }
+  remaining += warmupSeconds(dayId, true);
   return remaining;
 }
 
@@ -522,10 +599,9 @@ const WARMUP_SEC = 480;
 
 // Full day estimate: warmup + all exercises + setup between them
 function dayTotalSeconds(day) {
-  const warm = warmupForDay(day.id);
   return day.exercises.reduce((s, ex, i) => s + expectedExerciseSeconds(ex, day.id, i), 0)
     + Math.max(0, day.exercises.length - 1) * SETUP_SEC
-    + (warm ? expectedExerciseSeconds(warm) : WARMUP_SEC);
+    + warmupSeconds(day.id);
 }
 
 // Target seconds from the reps string ("30–45 sek" → 45).
@@ -539,9 +615,17 @@ function parseDefaultSeconds(ex) {
   return nums ? Math.max(...nums.map(Number)) : 30;
 }
 
-// Warmup library entry for a day + its seconds
-function warmupForDay(dayId) {
-  return loadLibrary().find((e) => e.muscle === "Uppvärmning" && e.days.includes(dayId)) || null;
+// Warmup library entries for a day + seconds helper
+function warmupsForDay(dayId) {
+  return loadLibrary().filter((e) => e.muscle === "Uppvärmning" && e.days.includes(dayId));
+}
+
+// Sum of warmup seconds; onlyUndone=true skips completed items
+function warmupSeconds(dayId, onlyUndone) {
+  return warmupsForDay(dayId).reduce((s, w) => {
+    if (onlyUndone && state.sets["warmup:" + w.id]) return s;
+    return s + parseDefaultSeconds(w);
+  }, 0);
 }
 
 // Returns the last logged reps for an exercise (from log history)
@@ -621,15 +705,14 @@ function renderProgram(dayId) {
   const header = document.createElement("div");
   header.className = "day-header";
 
-  const warmEx = warmupForDay(day.id);
-  const total = day.exercises.reduce((s, ex) => s + ex.sets, 0) + (warmEx ? 1 : 0);
+  const total = day.exercises.reduce((s, ex) => s + ex.sets, 0);
   const daySeconds = dayTotalSeconds(day);
   const done = day.exercises.reduce((s, ex, exIdx) => {
     for (let i = 0; i < ex.sets; i++) {
       if (state.sets[setKey(day.id, exIdx, i)]) s++;
     }
     return s;
-  }, 0) + (warmEx && state.sets["warmup:" + day.id] ? 1 : 0);
+  }, 0);
   const pct = total ? Math.round((done / total) * 100) : 0;
 
   header.innerHTML = `
@@ -652,20 +735,27 @@ function renderProgram(dayId) {
   const table = document.createElement("div");
   table.className = "exercise-list";
 
-  // Warmup card — from the exercise library, first in the list
-  if (warmEx) {
+  // Warmup card — list of bound warmup entries from the library
+  const warms = warmupsForDay(day.id);
+  if (warms.length) {
+    const warmTotalSec = warmupSeconds(day.id);
+    const warmRows = warms.map((w) => {
+      const done = state.sets["warmup:" + w.id];
+      return `
+      <div class="warmup-row${done ? " is-done" : ""}">
+        <span class="warmup-name exercise-name-btn" data-ex-id="${w.id}" role="button" tabindex="0">${w.name.replace(/^Uppvärmning: /, "")}</span>
+        <span class="warmup-time">${fmtSek(w.reps)}</span>
+        <button class="ex-timer-btn" data-timer-warmup="${w.id}" data-day="${day.id}" aria-label="Starta timer">▶</button>
+        <button class="ex-done-btn${done ? " is-done" : ""}" data-warmup-done="${w.id}" data-day="${day.id}">${done ? "✓" : "Klar"}</button>
+      </div>`;
+    }).join("");
     const warmEl = document.createElement("div");
     warmEl.className = "exercise warmup-exercise";
-    warmEl.dataset.ex = `warmup:${day.id}`;
-    const warmDone = state.sets["warmup:" + day.id];
-    const warmSec = parseDefaultSeconds(warmEx);
+    warmEl.dataset.ex = "warmup";
     warmEl.innerHTML = `
-      <span class="exercise-name-btn" data-ex-id="${warmEx.id}" role="button" tabindex="0">${warmEx.name}</span>
-      <div class="exercise-meta"><span class="exercise-time">≈ ${fmtMinutes(warmSec)}</span> · ${fmtSek(warmEx.reps)}</div>
-      <div class="ex-controls">
-        <button class="ex-done-btn${warmDone ? " is-done" : ""}" data-warmup-done="${day.id}">${warmDone ? "Klar ✓" : "Klar"}</button>
-        <button class="ex-timer-btn" data-timer-warmup="${day.id}" aria-label="Starta uppvärmningstimer">▶</button>
-      </div>
+      <span class="exercise-name-btn" data-ex-id="${warms[0].id}" role="button" tabindex="0">Uppvärmning</span>
+      <div class="exercise-meta"><span class="exercise-time">≈ ${fmtMinutes(warmTotalSec)}</span> totalt · ${warms.length} övningar</div>
+      <div class="warmup-list">${warmRows}</div>
     `;
     table.appendChild(warmEl);
   }
@@ -817,14 +907,15 @@ function renderProgram(dayId) {
       saveState(state);
       if (navigator.vibrate) navigator.vibrate(10);
       warmDoneBtn.classList.toggle("is-done", state.sets[key]);
-      warmDoneBtn.textContent = state.sets[key] ? "Klar ✓" : "Klar";
-      updateProgress(warmDoneBtn.dataset.warmupDone);
+      warmDoneBtn.textContent = state.sets[key] ? "✓" : "Klar";
+      warmDoneBtn.closest(".warmup-row").classList.toggle("is-done", state.sets[key]);
+      updateProgress(warmDoneBtn.dataset.day);
       return;
     }
     // Warmup: start timer
     const warmTimer = e.target.closest("[data-timer-warmup]");
     if (warmTimer) {
-      const wex = warmupForDay(warmTimer.dataset.timerWarmup);
+      const wex = loadLibrary().find((e2) => e2.id === warmTimer.dataset.timerWarmup);
       if (wex) startTimer(wex.name, parseDefaultSeconds(wex), true);
       return;
     }

@@ -359,6 +359,36 @@ main {
   cursor: pointer;
 }
 
+/* ── Warmup card ── */
+.warmup-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #1e293b;
+}
+
+.warmup-row:last-child {
+  border-bottom: none;
+}
+
+.warmup-row.is-done .warmup-name {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.warmup-name {
+  flex: 1;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.warmup-time {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Set rows ── */
 .sets-rows {
   display: flex;
